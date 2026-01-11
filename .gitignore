@@ -1,13 +1,17 @@
-# Ignore Node Modules (Huge dependency folders)
-node_modules/
-package-lock.json
+# Ignore Node Modules anywhere in the project
+**/node_modules/
+**/package-lock.json
 
-# Ignore Cypress generated videos/screenshots
-cypress/videos
-cypress/screenshots
-cypress/downloads
+# Ignore Cypress generated files
+**/cypress/videos/
+**/cypress/screenshots/
+**/cypress/downloads/
 
-# Ignore System files
+# Ignore Allure Reports and results
+**/allure-results/
+**/allure-report/
+
+# Ignore System and IDE files
 .DS_Store
 Thumbs.db
 .vscode/
