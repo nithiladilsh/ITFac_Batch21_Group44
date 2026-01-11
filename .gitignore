@@ -1,0 +1,13 @@
+# Ignore Node Modules (Huge dependency folders)
+node_modules/
+package-lock.json
+
+# Ignore Cypress generated videos/screenshots
+cypress/videos
+cypress/screenshots
+cypress/downloads
+
+# Ignore System files
+.DS_Store
+Thumbs.db
+.vscode/
