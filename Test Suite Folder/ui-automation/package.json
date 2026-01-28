@@ -1,0 +1,25 @@
+{
+  "name": "test-suite-folder",
+  "version": "1.0.0",
+  "description": "Group 44 UI Automation",
+  "main": "index.js",
+  "scripts": {
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
+    "test": "cypress run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@badeball/cypress-cucumber-preprocessor": "^24.0.0",
+    "@bahmutov/cypress-esbuild-preprocessor": "^2.2.8",
+    "allure-cypress": "^3.4.4",
+    "cypress": "^15.8.2",
+    "esbuild": "^0.19.0"
+  },
+  "cypress-cucumber-preprocessor": {
+    "nonGlobalStepDefinitions": false,
+    "stepDefinitions": "cypress/support/step_definitions/*.js"
+  }
+}

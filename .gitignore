@@ -1,17 +1,27 @@
-# Ignore Node Modules anywhere in the project
+# --- UI Automation (Node/JS) ---
 **/node_modules/
-**/package-lock.json
+# DO NOT ignore package-lock.json, it is vital for team sync!
 
-# Ignore Cypress generated files
+# Cypress Artifacts (Don't commit videos or screenshots)
 **/cypress/videos/
 **/cypress/screenshots/
 **/cypress/downloads/
 
-# Ignore Allure Reports and results
+# Allure Reports (Generated files)
 **/allure-results/
 **/allure-report/
 
-# Ignore System and IDE files
+# --- API Automation (Java/Maven) ---
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# --- IDE & System Files ---
+.idea/
+.vscode/
+*.iml
 .DS_Store
 Thumbs.db
-.vscode/
