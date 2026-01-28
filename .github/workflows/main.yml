@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch: 
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -23,24 +23,28 @@ jobs:
           node-version: 20
 
       - name: Install Dependencies
-        working-directory: ./Test Suite Folder
+        # CHANGED: Updated folder path
+        working-directory: ui-automation
         run: npm install
 
       - name: Run Cypress Tests
-        working-directory: ./Test Suite Folder
+        # CHANGED: Updated folder path
+        working-directory: ui-automation
         run: npx cypress run
         continue-on-error: true
 
       - name: Generate Allure Report
-        working-directory: ./Test Suite Folder
+        # CHANGED: Updated folder path
+        working-directory: ui-automation
         run: |
           npm install -g allure-commandline
           npx allure generate allure-results --clean -o allure-report
 
       - name: Deploy Report to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
-        if: always() # Run even if tests fail
+        if: always()
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
-          publish_dir: ./Test Suite Folder/allure-report
+          # CHANGED: Updated folder path
+          publish_dir: ui-automation/allure-report
