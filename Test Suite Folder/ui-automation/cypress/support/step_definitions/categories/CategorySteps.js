@@ -48,3 +48,9 @@ Then('I should be redirected to the Category List', () => {
 Then('I should not see {string} in the category list', (name) => {
   cy.contains(name).should('not.exist');
 });
+
+// UI_TC_04 - Verify that the "Add Category" button is visible for an Admin User
+Then('the "Add Category" button should be visible and clickable', () => {
+  categoryPage.verifyAddCategoryButtonVisible();
+});
+

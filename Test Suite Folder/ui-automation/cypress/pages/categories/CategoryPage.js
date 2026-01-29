@@ -49,6 +49,12 @@ class CategoryPage {
   clickCancel() {
     this.elements.cancelBtn().click();
   }
+
+  verifyAddCategoryButtonVisible() {
+    this.elements.addCategoryBtn()
+      .should('be.visible')
+      .and('not.be.disabled'); 
+  }
 }
 
 export default new CategoryPage();

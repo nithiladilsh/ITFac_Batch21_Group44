@@ -28,3 +28,7 @@ Feature: Category Management
     And I click the "Cancel" button
     Then I should be redirected to the Category List
     And I should not see "Temp" in the category list
+
+  Scenario: UI TC 04 - Verify that the "Add Category" button is visible for an Admin User
+    Given I am on the Category Management Page
+    Then the "Add Category" button should be visible and clickable
