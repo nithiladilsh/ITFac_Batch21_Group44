@@ -1,21 +1,24 @@
 class CategoryPage {
   elements = {
-    // 1. "Add A Category" 
+    // "Add A Category" 
     addCategoryBtn: () => cy.contains('Add A Category'),
 
-    // 2. Name Input
+    // Name Input
     nameInput: () => cy.get('input[name="name"]'), 
 
-    // 3. Parent Dropdown 
+    // Parent Dropdown 
     parentDropdown: () => cy.get('select[name="parentId"]'), 
     
-    // 4. Save Button 
+    // Save Button 
     saveBtn: () => cy.contains('button', 'Save'),
+
+    // Cancel Button
+    cancelBtn: () => cy.contains('Cancel'),
     
-    // 5. Success Message
+    // Success Message
     successMessage: () => cy.get('.alert-success'), 
     
-    // 6. Category List Table
+    // Category List Table
     categoryList: () => cy.get('table')
   };
 
@@ -41,6 +44,10 @@ class CategoryPage {
 
   clickSave() {
     this.elements.saveBtn().click();
+  }
+
+  clickCancel() {
+    this.elements.cancelBtn().click();
   }
 }
 

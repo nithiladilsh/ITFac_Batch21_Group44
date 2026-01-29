@@ -12,7 +12,6 @@ Feature: Category Management
     Then I should see the success message "Category created successfully"
     And I should see "Herbs" in the category list
 
-
   Scenario: UI TC 02 - Verify that an Admin can successfully create a Sub-Category
     Given I am on the Category Management Page
     When I click the "Add Category" button
@@ -21,3 +20,11 @@ Feature: Category Management
     And I click the "Save" button
     Then I should see the success message "Category created successfully"
     And I should see "Chives" in the category list
+
+  Scenario: UI TC 03 - Verify that the Cancel button functionality closes the form without saving
+    Given I am on the Category Management Page
+    When I click the "Add Category" button
+    And I enter "Temp" in the Category Name field
+    And I click the "Cancel" button
+    Then I should be redirected to the Category List
+    And I should not see "Temp" in the category list
