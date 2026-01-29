@@ -28,3 +28,7 @@ Then('I should see the success message {string}', (message) => {
 Then('I should see {string} in the category list', (categoryName) => {
   categoryPage.elements.categoryList().should('contain', categoryName);
 });
+
+When('I select {string} from the Parent Category dropdown', (parentName) => {
+  categoryPage.selectParent(parentName);
+});

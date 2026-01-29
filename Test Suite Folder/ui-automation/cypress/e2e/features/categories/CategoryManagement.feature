@@ -11,3 +11,13 @@ Feature: Category Management
     And I click the "Save" button
     Then I should see the success message "Category created successfully"
     And I should see "Herbs" in the category list
+
+
+  Scenario: UI TC 02 - Verify that an Admin can successfully create a Sub-Category
+    Given I am on the Category Management Page
+    When I click the "Add Category" button
+    And I enter "Chives" in the Category Name field
+    And I select "Herbs" from the Parent Category dropdown
+    And I click the "Save" button
+    Then I should see the success message "Category created successfully"
+    And I should see "Chives" in the category list
