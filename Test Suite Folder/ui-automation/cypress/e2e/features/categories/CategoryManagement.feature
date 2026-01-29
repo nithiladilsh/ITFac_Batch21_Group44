@@ -32,3 +32,8 @@ Feature: Category Management
   Scenario: UI TC 04 - Verify that the "Add Category" button is visible for an Admin User
     Given I am on the Category Management Page
     Then the "Add Category" button should be visible and clickable
+
+  Scenario: UI TC 05 - Verify that the "Parent Category" dropdown updates dynamically after adding a new Category
+    Given I am on the Category Management Page
+    When I click the "Add Category" button
+    Then the "Parent Category" dropdown should contain "Herbs"

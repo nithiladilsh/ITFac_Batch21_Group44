@@ -54,3 +54,8 @@ Then('the "Add Category" button should be visible and clickable', () => {
   categoryPage.verifyAddCategoryButtonVisible();
 });
 
+// UI_TC_05 - Verify that the "Parent Category" dropdown updates dynamically after adding a new Category
+Then('the "Parent Category" dropdown should contain {string}', (categoryName) => {
+  categoryPage.verifyParentDropdownContains(categoryName);
+});
+
