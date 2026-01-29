@@ -59,3 +59,11 @@ Then('the "Parent Category" dropdown should contain {string}', (categoryName) =>
   categoryPage.verifyParentDropdownContains(categoryName);
 });
 
+// UI_TC_06 - Clear the Name field and verify validation error
+When('I leave the Category Name field empty', () => {
+  categoryPage.clearNameField();
+});
+
+Then('I should see the validation error {string}', (message) => {
+  categoryPage.verifyValidationError(message);
+});

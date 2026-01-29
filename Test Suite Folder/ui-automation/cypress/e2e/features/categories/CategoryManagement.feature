@@ -37,3 +37,10 @@ Feature: Category Management
     Given I am on the Category Management Page
     When I click the "Add Category" button
     Then the "Parent Category" dropdown should contain "Herbs"
+
+  Scenario: UI TC 06 - Verify that the system prevents creating a category with an Empty Name
+    Given I am on the Category Management Page
+    When I click the "Add Category" button
+    And I leave the Category Name field empty
+    And I click the "Save" button
+    Then I should see the validation error "Category name is required"

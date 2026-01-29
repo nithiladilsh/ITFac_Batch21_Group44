@@ -67,6 +67,15 @@ class CategoryPage {
       .contains(optionName)    
       .should('exist');         
   }
+
+  // UI_TC_06 - Clear the Name field and verify validation error
+  clearNameField() {
+    this.elements.nameInput().clear();
+  }
+
+  verifyValidationError(errorMessage) {
+    cy.contains(errorMessage).should('be.visible');
+  }
 }
 
 export default new CategoryPage();
