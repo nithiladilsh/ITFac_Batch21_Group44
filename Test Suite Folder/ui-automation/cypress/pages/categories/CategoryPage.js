@@ -1,17 +1,15 @@
 class CategoryPage {
   elements = {
-    // 1. "Add A Category" Link (Verified from previous step)
+    // 1. "Add A Category" 
     addCategoryBtn: () => cy.contains('Add A Category'),
 
-    // 2. Name Input (Verified in your screenshot)
-    // It is just 'input[name="name"]' on the new page
+    // 2. Name Input
     nameInput: () => cy.get('input[name="name"]'), 
 
-    // 3. Parent Dropdown (FIXED based on your screenshot!)
-    // Changed from 'parent' to 'parentId'
+    // 3. Parent Dropdown 
     parentDropdown: () => cy.get('select[name="parentId"]'), 
     
-    // 4. Save Button (Verified in your screenshot as type="submit")
+    // 4. Save Button 
     saveBtn: () => cy.contains('button', 'Save'),
     
     // 5. Success Message
@@ -35,7 +33,6 @@ class CategoryPage {
 
   selectParent(parentName) {
     if (parentName === "empty") {
-      // Selects the first option (which is usually "Main Category" or blank)
       this.elements.parentDropdown().select(0); 
     } else {
       this.elements.parentDropdown().select(parentName);
