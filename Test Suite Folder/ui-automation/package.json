@@ -20,6 +20,6 @@
   },
   "cypress-cucumber-preprocessor": {
     "nonGlobalStepDefinitions": false,
-    "stepDefinitions": "cypress/support/step_definitions/*.js"
+    "stepDefinitions": "cypress/support/step_definitions/**/*.js" 
   }
 }
