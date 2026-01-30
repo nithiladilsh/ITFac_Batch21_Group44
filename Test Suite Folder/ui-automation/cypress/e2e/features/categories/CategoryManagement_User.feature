@@ -15,4 +15,11 @@ Feature: Category Management (Standard User Scenarios)
     And I click the "Search" button
     Then I should see "Vegetables" in the category list
     And I should not see "Fruits" in the category list
+
+  Scenario: UI TC 13 - Verify that a User can search for a category by a Partial Name
+    Given I am on the Category Management Page
+    When I enter "Veg" in the Search bar
+    And I click the "Search" button
+    Then I should see "Vegetables" in the category list
+    And I should not see "Fruits" in the category list
     
