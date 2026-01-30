@@ -1,0 +1,16 @@
+# Maven build output
+target/
+
+# Local Allure installation and results
+.allure/
+allure-results/
+
+# IDE specific files
+.settings/
+.project/
+.classpath/
+.vscode/
+
+# OS specific files
+Thumbs.db
+.DS_Store
