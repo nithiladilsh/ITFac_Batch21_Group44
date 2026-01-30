@@ -35,3 +35,36 @@ Feature: Category Management (Standard User Scenarios)
     And I click the "Search" button
     Then I should see "Chives" in the category list
     And I should not see "Vegetables" in the category list
+
+  Scenario: UI TC 16 - Verify that clicking Next and Previous pagination buttons works correctly
+    Given I am on the Category Management Page
+    Then I should see pagination controls at the bottom
+    When I note the name of the first category in the list
+    And I click the "Next" pagination button
+    Then the first category in the list should be different
+    And the "Previous" pagination button should be enabled
+    When I click the "Previous" pagination button
+    Then the first category in the list should be the same as before
+
+  Scenario: UI TC 17 - Verify that the "Add Category" button is hidden for a Standard User
+    Given I am on the Category Management Page
+    Then the "Add Category" button should NOT be visible
+
+  Scenario: UI TC 18 - Verify that the Search keyword is retained when navigating between pagination pages
+    Given I am on the Category Management Page
+    When I enter "plants" in the Search bar
+    And I click the "Search" button
+    Then I should see "plants" in the category list
+    When I click the "Next" pagination button
+    Then the Search bar should still contain "plants"
+    And all items in the list should contain "plants"
+
+  # TC 67 - Reset Functionality
+  Scenario: UI TC 67 - Verify that the Reset button clears the search and reloads the list
+    Given I am on the Category Management Page
+    When I enter "Vegetables" in the Search bar
+    And I click the "Search" button
+    Then I should see "Vegetables" in the category list
+    When I click the "Reset" button
+    Then the Search bar should be empty
+    And the category list should show multiple items

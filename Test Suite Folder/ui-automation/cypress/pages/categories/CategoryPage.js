@@ -33,14 +33,24 @@ class CategoryPage {
     // Search Inputs
     searchInput: () => cy.get('input[placeholder="Search sub category"]'),
     searchBtn: () => cy.contains('button', 'Search'),
-    resetBtn: () => cy.contains('button', 'Reset'),
+    resetBtn: () => cy.contains('a', 'Reset'),
 
     // Locates the "No Data" row in the table
     noResultsRow: () => cy.contains('td', 'No category found'),
 
     // Filter Dropdown (Usually near the search bar)
     // We assume it's the select inside the search form area
-    filterParentDropdown: () => cy.get('form').find('select')
+    filterParentDropdown: () => cy.get('form').find('select'),
+
+    // Pagination Buttons
+    nextPageBtn: () => cy.get('ul.pagination').contains('Next').parent(), 
+    prevPageBtn: () => cy.get('ul.pagination').contains('Previous').parent(),
+    
+    // First row in the table (to check if data changed)
+    firstCategoryRow: () => cy.get('tbody tr').first().find('td').eq(1), 
+
+    // The red error alert banner at the top of the form
+    errorBanner: () => cy.contains('.alert', 'already exists')
   };
 
   visit() {
@@ -134,6 +144,70 @@ class CategoryPage {
   // UI_TC_15 - Verify that filtering by Parent Category works correctly
   selectFilterParent(parentName) {
     this.elements.filterParentDropdown().should('be.visible').select(parentName);
+  }
+
+  // UI_TC_16 - Verify that pagination works correctly in the Category List
+  firstItemName = ""; 
+
+  captureFirstItemName() {
+    this.elements.firstCategoryRow().invoke('text').then((text) => {
+      this.firstItemName = text.trim();
+    });
+  }
+
+  clickNextPage() {
+    this.elements.nextPageBtn().click();
+  }
+
+  verifyFirstItemIsDifferent() {
+    this.elements.firstCategoryRow().invoke('text').then((text) => {
+      expect(text.trim()).not.to.equal(this.firstItemName);
+    });
+  }
+
+  verifyPreviousButtonEnabled() {
+    this.elements.prevPageBtn().should('not.have.class', 'disabled');
+  }
+
+  clickPreviousPage() {
+    this.elements.prevPageBtn().click();
+  }
+
+  verifyFirstItemIsSame() {
+    this.elements.firstCategoryRow().invoke('text').then((text) => {
+      expect(text.trim()).to.equal(this.firstItemName);
+    });
+  }
+
+  // UI_TC_17 - Verify that the "Add Category" button is not visible for a Standard User
+  verifyAddCategoryButtonNotVisible() {
+    this.elements.addCategoryBtn().should('not.exist');
+  }
+
+  // UI_TC_18 - Verify that search term persists after performing a search
+  verifySearchInputValue(expectedValue) {
+    this.elements.searchInput().should('have.value', expectedValue);
+  }
+
+  verifyAllRowsContain(term) {
+    this.elements.categoryTable().find('tbody tr').each(($row) => {
+      const rowText = $row.text().toLowerCase(); 
+      expect(rowText).to.contain(term.toLowerCase());
+    });
+  }
+
+  // UI_TC_66 - Verify that the system prevents duplicate categories
+  verifyDuplicateError(message) {
+        cy.contains(message).should('be.visible');
+  }
+
+  // UI_TC_67 - Verify that resetting the search clears the input field
+  verifySearchInputEmpty() {
+      this.elements.searchInput().should('have.value', '');
+  }
+
+  verifyMultipleItems() {
+    this.elements.categoryTable().find('tbody tr').should('have.length.gt', 1);
   }
 }
 

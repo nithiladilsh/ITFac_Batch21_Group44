@@ -100,3 +100,60 @@ Then('I should see the table message {string}', (message) => {
 When('I select {string} from the "Filter by Parent" dropdown', (parentName) => {
   categoryPage.selectFilterParent(parentName);
 });
+
+// UI_TC_16 - Verify that pagination works correctly in the Category List
+When('I note the name of the first category in the list', () => {
+  categoryPage.captureFirstItemName();
+});
+
+When('I click the "Next" pagination button', () => {
+  categoryPage.clickNextPage();
+});
+
+Then('the first category in the list should be different', () => {
+  categoryPage.verifyFirstItemIsDifferent();
+});
+
+Then('the "Previous" pagination button should be enabled', () => {
+  categoryPage.verifyPreviousButtonEnabled();
+});
+
+When('I click the "Previous" pagination button', () => {
+  categoryPage.clickPreviousPage();
+});
+
+Then('the first category in the list should be the same as before', () => {
+  categoryPage.verifyFirstItemIsSame();
+});
+
+// UI_TC_17 - Verify that the "Add Category" button is NOT visible for a Standard User
+Then('the "Add Category" button should NOT be visible', () => {
+  categoryPage.verifyAddCategoryButtonNotVisible();
+});
+
+// UI_TC_18 - Verify that search term persists after performing a search
+Then('the Search bar should still contain {string}', (term) => {
+  categoryPage.verifySearchInputValue(term);
+});
+
+Then('all items in the list should contain {string}', (term) => {
+  categoryPage.verifyAllRowsContain(term);
+});
+
+// UI_TC_66 - Verify that the system prevents duplicate categories
+Then('I should see the error banner {string}', (message) => {
+    categoryPage.verifyDuplicateError(message);
+});
+
+// UI_TC_67 - Verify that resetting the search clears the input field
+When('I click the "Reset" button', () => {
+    categoryPage.clickReset();
+});
+
+Then('the Search bar should be empty', () => {
+    categoryPage.verifySearchInputEmpty();
+});
+
+Then('the category list should show multiple items', () => {
+  categoryPage.verifyMultipleItems();
+});

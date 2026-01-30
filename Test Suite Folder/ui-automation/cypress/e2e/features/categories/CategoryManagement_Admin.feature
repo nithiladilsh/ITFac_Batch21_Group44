@@ -82,3 +82,11 @@ Feature: Category Management (Admin Scenarios)
     And I enter "Blueberries" in the Category Name field
     And I click the "Save" button
     Then I should see the validation error "Category name must be between 3 and 10 characters"
+
+  Scenario: UI TC 66 - Verify that the system prevents duplicate categories
+    Given I am on the Category Management Page
+    When I click the "Add Category" button
+    And I enter "plants" in the Category Name field
+    And I select "Main Category" from the Parent Category dropdown
+    And I click the "Save" button
+    Then I should see the error banner "Sub-category 'plants' already exists under this parent"
