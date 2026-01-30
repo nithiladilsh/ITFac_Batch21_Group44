@@ -37,6 +37,10 @@ class CategoryPage {
 
     // Locates the "No Data" row in the table
     noResultsRow: () => cy.contains('td', 'No category found'),
+
+    // Filter Dropdown (Usually near the search bar)
+    // We assume it's the select inside the search form area
+    filterParentDropdown: () => cy.get('form').find('select')
   };
 
   visit() {
@@ -125,6 +129,11 @@ class CategoryPage {
   // UI_TC_14 - Verify that searching for a non-existent category shows "No Results Found"
   verifyNoResultsMessage(message) {
     this.elements.noResultsRow().should('be.visible').and('contain', message);
+  }
+
+  // UI_TC_15 - Verify that filtering by Parent Category works correctly
+  selectFilterParent(parentName) {
+    this.elements.filterParentDropdown().should('be.visible').select(parentName);
   }
 }
 

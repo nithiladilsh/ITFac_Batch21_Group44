@@ -95,3 +95,8 @@ Then('I should not see {string} in the category list', (name) => {
 Then('I should see the table message {string}', (message) => {
   categoryPage.verifyNoResultsMessage(message);
 });
+
+// UI_TC_15 - Verify that filtering by Parent Category works correctly
+When('I select {string} from the "Filter by Parent" dropdown', (parentName) => {
+  categoryPage.selectFilterParent(parentName);
+});

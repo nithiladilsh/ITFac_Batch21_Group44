@@ -28,3 +28,10 @@ Feature: Category Management (Standard User Scenarios)
     When I enter "Spaceship" in the Search bar
     And I click the "Search" button
     Then I should see the table message "No category found"
+
+  Scenario: UI TC 15 - Verify that a User can filter the list to show only Sub-Categories of a specific Parent
+    Given I am on the Category Management Page
+    When I select "Herbs" from the "Filter by Parent" dropdown
+    And I click the "Search" button
+    Then I should see "Chives" in the category list
+    And I should not see "Vegetables" in the category list
