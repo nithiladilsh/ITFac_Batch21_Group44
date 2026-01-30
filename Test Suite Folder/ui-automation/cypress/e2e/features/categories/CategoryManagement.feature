@@ -44,3 +44,34 @@ Feature: Category Management
     And I leave the Category Name field empty
     And I click the "Save" button
     Then I should see the validation error "Category name is required"
+
+# Edge Case Scenario - Boundary Value Analysis
+  Scenario: UI TC 07 - Verify that the system prevents creating a category name with 2 characters
+    Given I am on the Category Management Page
+    When I click the "Add Category" button
+    And I enter "Ru" in the Category Name field
+    And I click the "Save" button
+    Then I should see the validation error "Category name must be between 3 and 10 characters"
+
+  Scenario: UI TC 08 - Verify that an Admin can create a category with the minimum allowed length (3 characters)
+    Given I am on the Category Management Page
+    When I click the "Add Category" button
+    And I enter "Rue" in the Category Name field
+    And I click the "Save" button
+    Then I should see the success message "Category created successfully"
+    And I should see "Rue" in the category list
+
+  Scenario: UI TC 09 - Verify that an Admin can create a category with the maximum allowed length (10 characters)
+    Given I am on the Category Management Page
+    When I click the "Add Category" button
+    And I enter "Vegetables" in the Category Name field
+    And I click the "Save" button
+    Then I should see the success message "Category created successfully"
+    And I should see "Vegetables" in the category list
+
+  Scenario: UI TC 10 - Verify that the system prevents creating a category name with 11 characters
+    Given I am on the Category Management Page
+    When I click the "Add Category" button
+    And I enter "Blueberries" in the Category Name field
+    And I click the "Save" button
+    Then I should see the validation error "Category name must be between 3 and 10 characters"
