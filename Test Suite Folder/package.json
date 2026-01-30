@@ -1,15 +1,17 @@
 {
   "name": "test-suite-folder",
   "version": "1.0.0",
-  "description": "Group 44 UI Automation",
+  "description": "Group 44 UI & API Automation Suite",
   "main": "index.js",
   "scripts": {
     "cy:open": "cypress open",
     "cy:run": "cypress run",
-    "test": "cypress run"
+    "test": "cypress run",
+    "test:ui": "cypress run --spec 'cypress/e2e/ui/features/**/*.feature'",
+    "test:api": "cypress run --spec 'cypress/e2e/api/**/*.cy.js'"
   },
   "keywords": [],
-  "author": "",
+  "author": "BugBusters Group 44",
   "license": "ISC",
   "devDependencies": {
     "@badeball/cypress-cucumber-preprocessor": "^24.0.0",
@@ -20,6 +22,6 @@
   },
   "cypress-cucumber-preprocessor": {
     "nonGlobalStepDefinitions": false,
-    "stepDefinitions": "cypress/support/step_definitions/**/*.js" 
+    "stepDefinitions": "cypress/support/step_definitions/**/*.js"
   }
 }
