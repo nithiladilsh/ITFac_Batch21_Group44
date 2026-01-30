@@ -8,4 +8,11 @@ Feature: Category Management (Standard User Scenarios)
     Then I should see the category table
     And the table should have columns "Name" and "Parent"
     And I should see pagination controls at the bottom
+
+  Scenario: UI TC 12 - Verify that a User can successfully search for a category by full name
+    Given I am on the Category Management Page
+    When I enter "Vegetables" in the Search bar
+    And I click the "Search" button
+    Then I should see "Vegetables" in the category list
+    And I should not see "Fruits" in the category list
     

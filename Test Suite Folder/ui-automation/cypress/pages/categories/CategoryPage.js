@@ -28,7 +28,12 @@ class CategoryPage {
     tableHeaders: () => cy.get('thead th'), 
 
     // The page numbers at bottom
-    paginationControls: () => cy.get('ul.pagination') 
+    paginationControls: () => cy.get('ul.pagination'),
+
+    // Search Inputs
+    searchInput: () => cy.get('input[placeholder="Search sub category"]'),
+    searchBtn: () => cy.contains('button', 'Search'),
+    resetBtn: () => cy.contains('button', 'Reset'),
   };
 
   visit() {
@@ -99,6 +104,19 @@ class CategoryPage {
 
   verifyPaginationVisible() {
     this.elements.paginationControls().scrollIntoView().should('be.visible');
+  }
+
+  // UI_TC_12 - Verify that a User can successfully search for a category by full name
+  enterSearchTerm(term) {
+    this.elements.searchInput().should('be.visible').clear().type(term);
+  }
+
+  clickSearch() {
+    this.elements.searchBtn().click();
+  }
+
+  clickReset() {
+    this.elements.resetBtn().click();
   }
 }
 

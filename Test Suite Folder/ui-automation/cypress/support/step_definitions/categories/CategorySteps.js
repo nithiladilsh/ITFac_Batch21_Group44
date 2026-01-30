@@ -45,10 +45,6 @@ Then('I should be redirected to the Category List', () => {
   cy.contains('Add A Category').should('be.visible'); 
 });
 
-Then('I should not see {string} in the category list', (name) => {
-  cy.contains(name).should('not.exist');
-});
-
 // UI_TC_04 - Verify that the "Add Category" button is visible for an Admin User
 Then('the "Add Category" button should be visible and clickable', () => {
   categoryPage.verifyAddCategoryButtonVisible();
@@ -79,4 +75,18 @@ Then('the table should have columns {string} and {string}', (col1, col2) => {
 
 Then('I should see pagination controls at the bottom', () => {
   categoryPage.verifyPaginationVisible();
+});
+
+
+// UI_TC_12 - Verify that a User can successfully search for a category by full name
+When('I enter {string} in the Search bar', (searchTerm) => {
+  categoryPage.enterSearchTerm(searchTerm);
+});
+
+When('I click the "Search" button', () => {
+  categoryPage.clickSearch();
+});
+
+Then('I should not see {string} in the category list', (name) => {
+  categoryPage.elements.categoryTable().should('not.contain', name);
 });
