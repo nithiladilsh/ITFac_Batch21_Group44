@@ -19,7 +19,16 @@ class CategoryPage {
     successMessage: () => cy.get('.alert-success'), 
     
     // Category List Table
-    categoryList: () => cy.get('table')
+    categoryList: () => cy.get('table'),
+
+    // The main table
+    categoryTable: () => cy.get('table'), 
+
+    // The column headers
+    tableHeaders: () => cy.get('thead th'), 
+
+    // The page numbers at bottom
+    paginationControls: () => cy.get('ul.pagination') 
   };
 
   visit() {
@@ -75,6 +84,21 @@ class CategoryPage {
 
   verifyValidationError(errorMessage) {
     cy.contains(errorMessage).should('be.visible');
+  }
+
+  // UI_TC_11 - Verify that the Category List displays correctly with pagination
+  verifyTableVisible() {
+    this.elements.categoryTable().should('be.visible');
+  }
+
+  verifyTableColumns(col1, col2) {
+    // Checks if the headers contain the exact text
+    this.elements.tableHeaders().contains(col1).should('be.visible');
+    this.elements.tableHeaders().contains(col2).should('be.visible');
+  }
+
+  verifyPaginationVisible() {
+    this.elements.paginationControls().scrollIntoView().should('be.visible');
   }
 }
 

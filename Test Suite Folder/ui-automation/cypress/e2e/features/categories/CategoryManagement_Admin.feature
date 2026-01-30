@@ -1,7 +1,11 @@
-Feature: Category Management
+Feature: Category Management (Admin Scenarios)
 
   Background:
     Given I am logged in as an Admin
+
+  # -------------------------------------------------------------------------
+  # HAPPY PATHS
+  # -------------------------------------------------------------------------
 
   Scenario: UI TC 01 - Verify that an Admin can successfully create a new Main Category
     Given I am on the Category Management Page
@@ -38,6 +42,10 @@ Feature: Category Management
     When I click the "Add Category" button
     Then the "Parent Category" dropdown should contain "Herbs"
 
+  # -------------------------------------------------------------------------
+  # VALIDATION & BOUNDARY TESTING
+  # -------------------------------------------------------------------------
+
   Scenario: UI TC 06 - Verify that the system prevents creating a category with an Empty Name
     Given I am on the Category Management Page
     When I click the "Add Category" button
@@ -45,7 +53,6 @@ Feature: Category Management
     And I click the "Save" button
     Then I should see the validation error "Category name is required"
 
-# Edge Case Scenario - Boundary Value Analysis
   Scenario: UI TC 07 - Verify that the system prevents creating a category name with 2 characters
     Given I am on the Category Management Page
     When I click the "Add Category" button

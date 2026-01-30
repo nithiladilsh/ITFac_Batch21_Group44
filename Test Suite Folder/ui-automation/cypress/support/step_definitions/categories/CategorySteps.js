@@ -67,3 +67,16 @@ When('I leave the Category Name field empty', () => {
 Then('I should see the validation error {string}', (message) => {
   categoryPage.verifyValidationError(message);
 });
+
+// UI_TC_11 - Verify that the Category List displays correctly with pagination
+Then('I should see the category table', () => {
+  categoryPage.verifyTableVisible();
+});
+
+Then('the table should have columns {string} and {string}', (col1, col2) => {
+  categoryPage.verifyTableColumns(col1, col2);
+});
+
+Then('I should see pagination controls at the bottom', () => {
+  categoryPage.verifyPaginationVisible();
+});
