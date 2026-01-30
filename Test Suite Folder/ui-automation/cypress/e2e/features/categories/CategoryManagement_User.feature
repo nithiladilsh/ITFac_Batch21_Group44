@@ -23,3 +23,8 @@ Feature: Category Management (Standard User Scenarios)
     Then I should see "Vegetables" in the category list
     And I should not see "Fruits" in the category list
     
+  Scenario: UI TC 14 - Verify that the system displays an empty state message when no search results are found
+    Given I am on the Category Management Page
+    When I enter "Spaceship" in the Search bar
+    And I click the "Search" button
+    Then I should see the table message "No category found"

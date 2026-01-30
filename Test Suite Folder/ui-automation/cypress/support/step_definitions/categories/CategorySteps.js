@@ -90,3 +90,8 @@ When('I click the "Search" button', () => {
 Then('I should not see {string} in the category list', (name) => {
   categoryPage.elements.categoryTable().should('not.contain', name);
 });
+
+// UI_TC_14 - Verify that searching for a non-existent category shows "No Results Found"
+Then('I should see the table message {string}', (message) => {
+  categoryPage.verifyNoResultsMessage(message);
+});

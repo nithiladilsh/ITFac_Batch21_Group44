@@ -34,6 +34,9 @@ class CategoryPage {
     searchInput: () => cy.get('input[placeholder="Search sub category"]'),
     searchBtn: () => cy.contains('button', 'Search'),
     resetBtn: () => cy.contains('button', 'Reset'),
+
+    // Locates the "No Data" row in the table
+    noResultsRow: () => cy.contains('td', 'No category found'),
   };
 
   visit() {
@@ -117,6 +120,11 @@ class CategoryPage {
 
   clickReset() {
     this.elements.resetBtn().click();
+  }
+
+  // UI_TC_14 - Verify that searching for a non-existent category shows "No Results Found"
+  verifyNoResultsMessage(message) {
+    this.elements.noResultsRow().should('be.visible').and('contain', message);
   }
 }
 
