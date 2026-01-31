@@ -4,11 +4,13 @@
   "description": "Group 44 UI & API Automation Suite",
   "main": "index.js",
   "scripts": {
-    "cy:open": "cypress open",
-    "cy:run": "cypress run",
-    "test": "cypress run",
-    "test:ui": "cypress run --spec 'cypress/e2e/ui/features/**/*.feature'",
-    "test:api": "cypress run --spec 'cypress/e2e/api/**/*.cy.js'"
+  "cy:open": "cypress open",
+  "cy:run": "cypress run",
+  "test:ui": "cypress run --spec 'cypress/e2e/ui/features/**/*.feature'",
+  "test:api": "cypress run --spec 'cypress/e2e/api/features/**/*.feature'",
+  "allure:clear": "powershell -Command \"if (Test-Path allure-results) { Remove-Item -Recurse -Force allure-results }; if (Test-Path allure-report) { Remove-Item -Recurse -Force allure-report }\"",
+  "allure:report": "npx allure generate --output allure-report",
+  "allure:open": "npx allure open allure-report"
   },
   "keywords": [],
   "author": "BugBusters Group 44",
