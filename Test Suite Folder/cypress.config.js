@@ -6,15 +6,18 @@ const { allureCypress } = require("allure-cypress/reporter");
 
 module.exports = defineConfig({
   e2e: {
-    // Defines paths for both Cucumber (UI) and Javascript (API) test files
+    // Defines paths for both UI and API test files
     specPattern: [
       "cypress/e2e/ui/features/**/*.feature",
-      "cypress/e2e/api/**/*.cy.js"
+      "cypress/e2e/api/features/**/*.feature",
+      "cypress/e2e/api/**/*.cy.js"        
     ],
-    async setupNodeEvents(on, config) {
-      // Required for Cucumber and Allure Reporting
+   async setupNodeEvents(on, config) {
       await addCucumberPreprocessorPlugin(on, config);
-      allureCypress(on, config);
+      
+      allureCypress(on, config, {
+        resultsDir: "allure-results",
+      });
 
       on(
         "file:preprocessor",
