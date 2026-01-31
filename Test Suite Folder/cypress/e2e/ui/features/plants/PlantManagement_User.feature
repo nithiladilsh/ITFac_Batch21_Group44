@@ -1,7 +1,7 @@
 Feature: Plant List Management (User Scenarios)
 
 Background:
-    Given I am logged in as a User
+    Given I am logged in as a Standard User
     And I am on the Plant List Page
 
   # -------------------------------------------------------------------------
