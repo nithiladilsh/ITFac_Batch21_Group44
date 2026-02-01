@@ -34,7 +34,7 @@ When('I send a POST request to create a category with numeric name {int}', (nume
       'Content-Type': 'application/json'
     },
     body: {
-      "name": numericValue, 
+      "name": uniqueNumericName, 
       "parent": null 
     }
   }).then((res) => {
@@ -77,4 +77,24 @@ Then('the response body should confirm {string} for category name', (errorMessag
 Then('the response body should confirm {string}', (expectedMessage) => {
   const actualMessage = apiResponse.body.message || apiResponse.body.error || apiResponse.body;
   expect(actualMessage).to.include(expectedMessage); 
+});
+
+
+// API_TC_03 - Verify that the API rejects whitespace-only Category Names
+When('I send a POST request to create a category with whitespace name {string}', (whitespaceValue) => {
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/categories`,
+    failOnStatusCode: false,
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: {
+      "name": whitespaceValue, 
+      "parent": null           
+    }
+  }).then((res) => {
+    apiResponse = res;
+  });
 });
