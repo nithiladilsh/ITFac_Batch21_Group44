@@ -20,3 +20,10 @@ Feature: Category API Validation
     When I send a POST request to create a category with whitespace name "   "
     Then the category response status should be 400
     And the response body should confirm "Validation failed"
+
+  Scenario: API_TC_04 - Verify that the API prevents creating duplicate Category Names
+    Given the API Service is running
+    And an Admin Auth Token is available
+    When I attempt to create a duplicate category with name "UniqueTest"
+    Then the category response status should be 400
+    And the response body should confirm "already exists"

@@ -23,7 +23,9 @@ Given('an Admin Auth Token is available', () => {
 
 // API_TC_01 - Verify numeric Category Name
 When('I send a POST request to create a category with numeric name {int}', (numericValue) => {
-  const uniqueNumericName = Number(`${numericValue}${Date.now()}`);
+  // Generate a random 5-digit number (between 10000 and 99999).
+  // This fits the "3 to 10 chars" rule but remains a Number type.
+  const uniqueNumericName = Number(Math.floor(10000 + Math.random() * 90000));
 
   cy.request({
     method: 'POST',
@@ -34,7 +36,7 @@ When('I send a POST request to create a category with numeric name {int}', (nume
       'Content-Type': 'application/json'
     },
     body: {
-      "name": uniqueNumericName, 
+      "name": uniqueNumericName, // Sends the 5-digit number
       "parent": null 
     }
   }).then((res) => {
@@ -44,6 +46,10 @@ When('I send a POST request to create a category with numeric name {int}', (nume
 
 // API_TC_02 - Verify non-existent Parent
 When('I send a POST request to create a category with non-existent parent {string}', (invalidParentValue) => {
+  // FIX: Create a short name (e.g., "Gh" + 4 digits = 6 chars).
+  // Fits the "3 to 10 chars" rule so the API checks the Parent ID instead of Name length.
+  const shortUniqueName = `Gh${Math.floor(1000 + Math.random() * 9000)}`;
+
   cy.request({
     method: 'POST',
     url: `${Cypress.env('apiUrl')}/categories`,
@@ -53,11 +59,72 @@ When('I send a POST request to create a category with non-existent parent {strin
       'Content-Type': 'application/json'
     },
     body: {
-      "name": `Ghost_${Date.now()}`, 
+      "name": shortUniqueName, 
       "parent": invalidParentValue 
     }
   }).then((res) => {
     apiResponse = res;
+  });
+});
+
+// API_TC_03 - Verify that the API rejects whitespace-only Category Names
+When('I send a POST request to create a category with whitespace name {string}', (whitespaceValue) => {
+  // No fix needed: "   " is 3 characters long, so it passes length check 
+  // and hits the "Blank/Empty" validation we want to test.
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/categories`,
+    failOnStatusCode: false,
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: {
+      "name": whitespaceValue, 
+      "parent": null           
+    }
+  }).then((res) => {
+    apiResponse = res;
+  });
+});
+
+// API_TC_04 - Verify that duplicate Category Names are not allowed
+When('I attempt to create a duplicate category with name {string}', (baseName) => {
+  // FIX: Keep the logic we just fixed.
+  // "Dup" + 4 digits = 7 chars. Fits the limit.
+  const uniqueName = `Dup${Math.floor(1000 + Math.random() * 9000)}`;
+
+  // 1. First Request: Create the category successfully
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/categories`,
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: {
+      "name": uniqueName,
+      "parent": null
+    }
+  }).then((firstRes) => {
+    expect(firstRes.status).to.eq(201); 
+
+    // 2. Second Request: Try to create the EXACT SAME category again
+    cy.request({
+      method: 'POST',
+      url: `${Cypress.env('apiUrl')}/categories`,
+      failOnStatusCode: false, 
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: {
+        "name": uniqueName, 
+        "parent": null
+      }
+    }).then((secondRes) => {
+      apiResponse = secondRes; 
+    });
   });
 });
 
@@ -76,25 +143,6 @@ Then('the response body should confirm {string} for category name', (errorMessag
 
 Then('the response body should confirm {string}', (expectedMessage) => {
   const actualMessage = apiResponse.body.message || apiResponse.body.error || apiResponse.body;
-  expect(actualMessage).to.include(expectedMessage); 
-});
-
-
-// API_TC_03 - Verify that the API rejects whitespace-only Category Names
-When('I send a POST request to create a category with whitespace name {string}', (whitespaceValue) => {
-  cy.request({
-    method: 'POST',
-    url: `${Cypress.env('apiUrl')}/categories`,
-    failOnStatusCode: false,
-    headers: {
-      'Authorization': `Bearer ${authToken}`,
-      'Content-Type': 'application/json'
-    },
-    body: {
-      "name": whitespaceValue, 
-      "parent": null           
-    }
-  }).then((res) => {
-    apiResponse = res;
-  });
+  // This helps match partial error messages like "already exists"
+  expect(JSON.stringify(actualMessage)).to.include(expectedMessage); 
 });
