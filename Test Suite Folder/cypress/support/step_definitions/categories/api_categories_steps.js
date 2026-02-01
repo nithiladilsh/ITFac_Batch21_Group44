@@ -161,3 +161,26 @@ When('I send a POST request to create a category with null name', () => {
     apiResponse = res;
   });
 });
+
+
+// API_TC_06 - Verify that the API rejects String values for Parent ID
+When('I send a POST request to create a category with string parent ID {string}', (stringId) => {
+  // Generate a unique name to prevent duplicate errors
+  const uniqueName = `Sub${Math.floor(1000 + Math.random() * 9000)}`;
+
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/categories`,
+    failOnStatusCode: false,
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: {
+      "name": uniqueName,
+      "parentId": stringId 
+    }
+  }).then((res) => {
+    apiResponse = res;
+  });
+});

@@ -34,3 +34,10 @@ Feature: Category API Validation
     When I send a POST request to create a category with null name
     Then the category response status should be 400
     And the response body should confirm "Validation failed"
+
+  Scenario: API_TC_06 - Verify that the API rejects String values for Parent ID
+    Given the API Service is running
+    And an Admin Auth Token is available
+    When I send a POST request to create a category with string parent ID "10"
+    Then the category response status should be 400
+    And the response body should confirm "Validation failed"
