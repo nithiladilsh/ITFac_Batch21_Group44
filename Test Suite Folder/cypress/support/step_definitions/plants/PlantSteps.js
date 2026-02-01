@@ -28,3 +28,73 @@ Then("additional plants should be available on subsequent pages", () => {
   plantPage.clickNextPage();
   plantPage.verifyFirstPlantIsChanged();
 });
+
+// UI_TC_38: Verify that pagination controls are present and functional on the Plant List Page.
+
+Given("the number of plants exceeds one page", () => {
+  plantPage.elements.paginationControls().should("be.visible");
+});
+
+When("I locate the pagination controls", () => {
+  plantPage.verifyPaginationVisible();
+});
+
+Then(
+  'pagination controls such as "Next", "Previous" and page numbers should be visible',
+  () => {
+    plantPage.verifyPaginationControlsVisible();
+  }
+);
+
+When('I click "Next" page button', () => {
+  plantPage.captureFirstPlantName();
+  plantPage.clickNextPage();
+});
+
+Then("the next set of plant records should be displayed", () => {
+  plantPage.verifyFirstPlantIsChanged();
+});
+
+When('I click "Previous" page button', () => {
+  plantPage.clickPreviousPage();
+});
+
+Then("the previous set of plant records should be displayed", () => {
+  plantPage.elements.firstPlantRow()
+    .invoke("text")
+    .then((text) => {
+      expect(text.trim()).to.equal(plantPage.firstPlantName);
+    });
+});
+
+Then("the plant list should be updated correctly without errors", () => {
+  cy.get("tbody tr").should("have.length.greaterThan", 0);
+  cy.get(".alert-danger").should("not.exist");
+});
+
+// UI_TC_39: Verify that the search functionality works correctly on the Plant List Page.
+
+Given("plants exist with different names", () => {
+  plantPage.elements.tableRows().should("have.length.greaterThan", 1);
+});
+
+When("I enter a valid plant name or partial name in the search field", () => {
+  plantPage.capturePlantNameForSearch();
+  plantPage.searchPlant();
+});
+
+Then("only plants matching the searched term should be displayed", () => {
+  plantPage.verifySearchResults();
+});
+
+Then("non-matching plants should be hidden", () => {
+  plantPage.elements.tableRows().should("have.length.greaterThan", 0);
+});
+
+When("I clear the search input", () => {
+  plantPage.clearSearch();
+});
+
+Then("all the plant records should be displayed", () => {
+  plantPage.elements.tableRows().should("have.length.greaterThan", 1);
+});

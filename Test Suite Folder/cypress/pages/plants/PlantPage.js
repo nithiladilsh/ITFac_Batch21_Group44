@@ -10,7 +10,10 @@ class PlantPage {
         nextPageBtn: () => cy.get('ul.pagination').contains('Next').parent(),
         prevPageBtn: () => cy.get('ul.pagination').contains('Previous').parent(),
 
-        firstPlantRow: () => cy.get('tbody tr').first()
+        firstPlantRow: () => cy.get('tbody tr').first(),
+
+        searchInput: () => cy.get('input[placeholder="Search plant"]'),
+        searchButton: () => cy.contains("button", "Search"),
     };
 
     visit() {
@@ -55,6 +58,61 @@ class PlantPage {
             expect(text.trim()).not.to.equal(this.firstPlantName);
         });
     }
+
+    // Click Previous page
+    clickPreviousPage() {
+    this.elements.prevPageBtn()
+    .should("not.have.class", "disabled")
+    .click();
+    }
+
+    // Verify pagination controls text
+    verifyPaginationControlsVisible() {
+    this.elements.paginationControls().should("be.visible");
+    cy.contains("Next").should("be.visible");
+    cy.contains("Previous").should("be.visible");
+    }
+
+    // Capture a plant name to search for
+    capturePlantNameForSearch() {
+    this.elements.firstPlantRow()
+    .find("td")
+    .first()
+    .invoke("text")
+    .then((text) => {
+      cy.wrap(text.trim().substring(0, 3)).as("searchTerm");
+    });
+}
+
+
+    // Enter search term
+    searchPlant() {
+    cy.get("@searchTerm").then((term) => {
+    this.elements.searchInput().clear().type(term);
+    this.elements.searchButton().click();
+  });
+}
+
+
+    // Clear search
+    clearSearch() {
+    this.elements.searchInput().clear();
+    this.elements.searchButton().click();
+    }
+
+    // Verify only matching plants are shown
+    verifySearchResults() {
+    cy.get("@searchTerm").then((term) => {
+    this.elements.tableRows().each(($row) => {
+      cy.wrap($row)
+        .find("td")
+        .first()
+        .invoke("text")
+        .should("contain", term);
+    });
+  });
+}
+
 
 }
 
