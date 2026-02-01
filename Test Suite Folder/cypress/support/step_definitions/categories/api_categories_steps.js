@@ -3,7 +3,7 @@ import { Given, When, Then } from "@badeball/cypress-cucumber-preprocessor";
 let apiResponse;
 let authToken;
 
-// Pre-requisites
+// PRE-REQUISITES
 Given('the API Service is running', () => {
   cy.log('API Service check initiated');
 });
@@ -18,13 +18,14 @@ Given('an Admin Auth Token is available', () => {
     }
   }).then((res) => {
     authToken = res.body.token; 
+    cy.log("Admin Token Retrieved"); 
   });
 });
 
+
+// ADMIN TEST STEPS (API_TC_01 - API_TC_06)
 // API_TC_01 - Verify that the API rejects non-string data types for Category Name
 When('I send a POST request to create a category with numeric name {int}', (numericValue) => {
-  // Generate a random 5-digit number (between 10000 and 99999).
-  // This fits the "3 to 10 chars" rule but remains a Number type.
   const uniqueNumericName = Number(Math.floor(10000 + Math.random() * 90000));
 
   cy.request({
@@ -36,18 +37,17 @@ When('I send a POST request to create a category with numeric name {int}', (nume
       'Content-Type': 'application/json'
     },
     body: {
-      "name": uniqueNumericName, // Sends the 5-digit number
+      "name": uniqueNumericName,
       "parent": null 
     }
   }).then((res) => {
     apiResponse = res;
+    cy.log("API Response (Numeric Name): " + JSON.stringify(res.body));
   });
 });
 
 // API_TC_02 - Verify that the API rejects creation with a non-existent Parent ID
 When('I send a POST request to create a category with non-existent parent {string}', (invalidParentValue) => {
-  // Create a short name (e.g., "Gh" + 4 digits = 6 chars).
-  // Fits the "3 to 10 chars" rule so the API checks the Parent ID instead of Name length.
   const shortUniqueName = `Gh${Math.floor(1000 + Math.random() * 9000)}`;
 
   cy.request({
@@ -64,6 +64,7 @@ When('I send a POST request to create a category with non-existent parent {strin
     }
   }).then((res) => {
     apiResponse = res;
+    cy.log("API Response (Invalid Parent): " + JSON.stringify(res.body));
   });
 });
 
@@ -79,16 +80,16 @@ When('I send a POST request to create a category with whitespace name {string}',
     },
     body: {
       "name": whitespaceValue, 
-      "parent": null           
+      "parent": null          
     }
   }).then((res) => {
     apiResponse = res;
+    cy.log("API Response (Whitespace): " + JSON.stringify(res.body));
   });
 });
 
 // API_TC_04 - Verify that the API prevents creating duplicate Category Names
 When('I attempt to create a duplicate category with name {string}', (baseName) => {
-  // "Dup" + 4 digits = 7 chars. Fits the limit.
   const uniqueName = `Dup${Math.floor(1000 + Math.random() * 9000)}`;
 
   // 1. First Request: Create the category successfully
@@ -105,6 +106,7 @@ When('I attempt to create a duplicate category with name {string}', (baseName) =
     }
   }).then((firstRes) => {
     expect(firstRes.status).to.eq(201); 
+    cy.log(`Created Initial Category: ${uniqueName}`);
 
     // 2. Second Request: Try to create the EXACT SAME category again
     cy.request({
@@ -121,26 +123,9 @@ When('I attempt to create a duplicate category with name {string}', (baseName) =
       }
     }).then((secondRes) => {
       apiResponse = secondRes; 
+      cy.log("Duplicate Attempt Response: " + JSON.stringify(secondRes.body));
     });
   });
-});
-
-// GENERIC ASSERTIONS
-Then('the category response status should be {int}', (expectedStatus) => {
-  expect(apiResponse.status).to.eq(expectedStatus); 
-});
-
-Then('the response body should confirm {string} for category name', (errorMessage) => {
-  const actualMessage = typeof apiResponse.body === 'string' 
-    ? apiResponse.body 
-    : (apiResponse.body.message || apiResponse.body.error);
-
-  expect(actualMessage).to.contain(errorMessage); 
-});
-
-Then('the response body should confirm {string}', (expectedMessage) => {
-  const actualMessage = apiResponse.body.message || apiResponse.body.error || apiResponse.body;
-  expect(JSON.stringify(actualMessage)).to.include(expectedMessage); 
 });
 
 // API_TC_05 - Verify that the API rejects Null values for Category Name
@@ -154,18 +139,17 @@ When('I send a POST request to create a category with null name', () => {
       'Content-Type': 'application/json'
     },
     body: {
-      "name": null,   // Sends explicit null value
+      "name": null,   
       "parent": null 
     }
   }).then((res) => {
     apiResponse = res;
+    cy.log("API Response (Null Name): " + JSON.stringify(res.body));
   });
 });
 
-
 // API_TC_06 - Verify that the API rejects String values for Parent ID
 When('I send a POST request to create a category with string parent ID {string}', (stringId) => {
-  // Generate a unique name to prevent duplicate errors
   const uniqueName = `Sub${Math.floor(1000 + Math.random() * 9000)}`;
 
   cy.request({
@@ -182,26 +166,50 @@ When('I send a POST request to create a category with string parent ID {string}'
     }
   }).then((res) => {
     apiResponse = res;
+    cy.log("API Response (Schema Test): " + JSON.stringify(res.body));
   });
 });
 
 
-// API_TC_07 - Verify GET request with pagination returns correct number of items
-// 1. User Login (Different from Admin Login)
+// GENERIC ASSERTIONS
+Then('the category response status should be {int}', (expectedStatus) => {
+  expect(apiResponse.status).to.eq(expectedStatus); 
+});
+
+Then('the response body should confirm {string} for category name', (errorMessage) => {
+  const actualMessage = typeof apiResponse.body === 'string' 
+    ? apiResponse.body 
+    : (apiResponse.body.message || apiResponse.body.error);
+
+  expect(actualMessage).to.contain(errorMessage); 
+});
+
+Then('the response body should confirm {string}', (expectedMessage) => {
+  const actualMessage = apiResponse.body.message || apiResponse.body.error || apiResponse.body;
+  cy.log(`Checking if response contains: "${expectedMessage}"`);
+  expect(JSON.stringify(actualMessage)).to.include(expectedMessage); 
+});
+
+
+// USER TEST STEPS (API_TC_07 - API_TC_12)
+
+// API_TC_07 - Verify that the API pagination returns the correct item count
+// 1. User Login 
 Given('a User Auth Token is available', () => {
   cy.request({
     method: 'POST',
     url: `${Cypress.env('apiUrl')}/auth/login`,
     body: {
-      username: Cypress.env('stdUser'),
+      username: Cypress.env('stdUser'), 
       password: Cypress.env('stdPass')
     }
   }).then((res) => {
     authToken = res.body.token; 
+    cy.log("User Token Retrieved");
   });
 });
 
-// 2. GET Request with Pagination Query Params
+// 2. GET Request with Pagination
 When('I send a GET request to retrieve categories with page {int} and size {int}', (page, size) => {
   cy.request({
     method: 'GET',
@@ -218,10 +226,9 @@ When('I send a GET request to retrieve categories with page {int} and size {int}
   });
 });
 
-// 3. Assert the exact number of items returned
 Then('the response body should contain exactly {int} categories', (count) => {
   const dataList = apiResponse.body.content ? apiResponse.body.content : apiResponse.body;
   
-  cy.log(`Items found: ${dataList.length}`);
+  cy.log("Categories found: " + JSON.stringify(dataList.map(c => c.name)));
   expect(dataList).to.have.length(count);
 });
