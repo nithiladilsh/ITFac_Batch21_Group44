@@ -14,6 +14,8 @@ class PlantPage {
 
         searchInput: () => cy.get('input[placeholder="Search plant"]'),
         searchButton: () => cy.contains("button", "Search"),
+
+        noPlantsMessage: () => cy.contains("No plants found"),
     };
 
     visit() {
@@ -112,6 +114,20 @@ class PlantPage {
     });
   });
 }
+
+    searchForNonExistingPlant() {
+    const randomText = `zzz-${Date.now()}`;
+    this.elements.searchInput().clear().type(randomText);
+    this.elements.searchButton().click();
+    }
+
+    verifyNoPlantsFoundMessage() {
+    this.elements.noPlantsMessage().should("be.visible");
+    }
+
+    verifyNoPlantsDisplayed() {
+    this.elements.tableRows().should("have.length", 0);
+    }
 
 
 }

@@ -40,7 +40,7 @@ Scenario: UI TC 39 - Verify searching by plant name updates the displayed result
 Scenario: UI TC 40 - Verify “No plants found” message is displayed when list is empty
     Given no plants exist or the search returns no results
     When I perform a search using a non-existing plant name
-    Then the message “No plants found” is displayed clearly
+    Then the message "No plants found" is displayed clearly
     And no plant cards or rows are shown
 
   # -------------------------------------------------------------------------

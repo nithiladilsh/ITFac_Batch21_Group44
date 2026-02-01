@@ -98,3 +98,59 @@ When("I clear the search input", () => {
 Then("all the plant records should be displayed", () => {
   plantPage.elements.tableRows().should("have.length.greaterThan", 1);
 });
+
+
+// UI_TC_40: Verify “No plants found” message is displayed when list is empty
+
+Given("no plants exist or the search returns no results", () => {
+  plantPage.elements.tableRows().should("have.length.greaterThan", 0);
+});
+
+When("I perform a search using a non-existing plant name", () => {
+  plantPage.searchForNonExistingPlant();
+});
+
+Then("the message {string} is displayed clearly", (message) => {
+  cy.contains(message).should("be.visible");
+});
+
+Then("no plant cards or rows are shown", () => {
+  cy.get("tbody tr td")
+    .should("have.length", 1)
+    .and("contain.text", "No plants found");
+});
+
+//UI_TC_41: Verify “Low” badge is visually displayed on plant card when stock is low
+
+Given("a plant exists with quantity less than 5", () => {
+  cy.contains("Low").should("exist");
+});
+
+When("I locate the plant with low quantity", () => {
+  cy.contains("Low")
+    .closest("tr")
+    .as("lowStockRow");
+});
+
+Then('a “Low” badge is displayed on the corresponding plant card or rows', () => {
+  cy.get("@lowStockRow")
+    .contains("Low")
+    .should("be.visible");
+});
+
+Then("the badge should be visually distinct", () => {
+  cy.get("@lowStockRow")
+    .find(".badge")
+    .should("have.class", "bg-danger");
+});
+
+Then("the badge should be clearly associated with the low stock plant", () => {
+  cy.get("@lowStockRow")
+    .find("td")
+    .first()
+    .invoke("text")
+    .should("not.be.empty");
+});
+
+
+
