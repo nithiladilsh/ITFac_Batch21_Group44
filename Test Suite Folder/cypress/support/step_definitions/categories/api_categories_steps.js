@@ -184,3 +184,44 @@ When('I send a POST request to create a category with string parent ID {string}'
     apiResponse = res;
   });
 });
+
+
+// API_TC_07 - Verify GET request with pagination returns correct number of items
+// 1. User Login (Different from Admin Login)
+Given('a User Auth Token is available', () => {
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/auth/login`,
+    body: {
+      username: Cypress.env('stdUser'),
+      password: Cypress.env('stdPass')
+    }
+  }).then((res) => {
+    authToken = res.body.token; 
+  });
+});
+
+// 2. GET Request with Pagination Query Params
+When('I send a GET request to retrieve categories with page {int} and size {int}', (page, size) => {
+  cy.request({
+    method: 'GET',
+    url: `${Cypress.env('apiUrl')}/categories/page`,
+    qs: {
+      page: page,
+      size: size
+    },
+    headers: {
+      'Authorization': `Bearer ${authToken}`
+    }
+  }).then((res) => {
+    apiResponse = res;
+  });
+});
+
+// 3. Assert the exact number of items returned
+Then('the response body should contain exactly {int} categories', (count) => {
+  const dataList = apiResponse.body.content ? apiResponse.body.content : apiResponse.body;
+  
+  cy.log(`Items found: ${dataList.length}`);
+  expect(dataList).to.have.length(count);
+});
