@@ -170,8 +170,6 @@ When('I send a POST request to create a category with string parent ID {string}'
   });
 });
 
-
-// GENERIC ASSERTIONS
 Then('the category response status should be {int}', (expectedStatus) => {
   expect(apiResponse.status).to.eq(expectedStatus); 
 });
