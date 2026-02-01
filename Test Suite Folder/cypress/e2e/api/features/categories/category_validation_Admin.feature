@@ -27,3 +27,10 @@ Feature: Category API Validation
     When I attempt to create a duplicate category with name "UniqueTest"
     Then the category response status should be 400
     And the response body should confirm "already exists"
+  
+  Scenario: API_TC_05 - Verify that the API rejects Null values for Category Name
+    Given the API Service is running
+    And an Admin Auth Token is available
+    When I send a POST request to create a category with null name
+    Then the category response status should be 400
+    And the response body should confirm "Validation failed"
