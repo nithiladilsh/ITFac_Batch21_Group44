@@ -1,5 +1,94 @@
-import { Given, When, Then } from "@badeball/cypress-cucumber-preprocessor";
+import { Given, When, Then, Before, After } from "@badeball/cypress-cucumber-preprocessor";
 import plantPage from "../../../pages/plants/PlantPage";
+
+const TEST_PLANTS = [
+  "Plant 1", "Plant 2", "Plant 3", "Plant 4", "Plant 5",
+  "Plant 6", "Plant 7", "Plant 8", "Plant 9", "Plant 10",
+  "Plant 11", "Plant 12", "Plant 13", "Plant 14", "Plant 15",
+  "Low Stock Plant"
+];
+
+const cleanUpPlantData = () => {
+  cy.log("Cleaning Plant Test Data...");
+
+  cy.request({
+    method: "POST",
+    url: `${Cypress.env("apiUrl")}/auth/login`,
+    body: {
+      username: Cypress.env("adminUser"),
+      password: Cypress.env("adminPass"),
+    },
+    failOnStatusCode: false,
+  }).then((loginRes) => {
+    const token = loginRes.body.token;
+
+    cy.request({
+      method: "GET",
+      url: `${Cypress.env("apiUrl")}/plants?page=0&size=2000`,
+      headers: { Authorization: `Bearer ${token}` },
+      failOnStatusCode: false,
+    }).then((listRes) => {
+      const plantsList = listRes.body.content || listRes.body; // <--- safe fallback
+      const junk = plantsList.filter((p) =>
+        TEST_PLANTS.includes(p.name)
+      );
+
+      junk.forEach((plant) => {
+        cy.request({
+          method: "DELETE",
+          url: `${Cypress.env("apiUrl")}/plants/${plant.id}`,
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      });
+    });
+  });
+};
+
+
+Before(() => {
+  cleanUpPlantData();
+});
+
+Before({ tags: "@setup_plant_data" }, () => {
+  cy.log("Seeding Plant Test Data...");
+
+  cy.request({
+    method: "POST",
+    url: `${Cypress.env("apiUrl")}/auth/login`,
+    body: {
+      username: Cypress.env("adminUser"),
+      password: Cypress.env("adminPass"),
+    },
+    failOnStatusCode: false,
+  }).then((loginRes) => {
+    const token = loginRes.body.token;
+    const headers = { Authorization: `Bearer ${token}` };
+
+    TEST_PLANTS.forEach((plant, index) => {
+      cy.request({
+        method: "POST",
+        url: `${Cypress.env("apiUrl")}/plants`,
+        headers,
+        body: {
+          name: plant,
+          price: index === 15 ? 200 : 100, // last plant = low stock
+          quantity: index === 15 ? 2 : 10,
+        },
+        failOnStatusCode: false, // prevent test from failing if POST fails
+      }).then((res) => {
+        if (res.status !== 201 && res.status !== 200) {
+          cy.log(`Skipped creating ${plant} — status: ${res.status}`);
+        }
+      });
+    });
+  });
+});
+
+
+After(() => {
+  cleanUpPlantData();
+});
+
 
 // UI_TC_37: Verify that the plant list table is displayed correctly with pagination.
 

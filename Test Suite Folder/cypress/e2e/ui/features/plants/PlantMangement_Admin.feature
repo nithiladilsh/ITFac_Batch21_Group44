@@ -1,3 +1,4 @@
+@setup_plant_data
 Feature: Plant List Management (Admin Scenarios)
 
 Background:
