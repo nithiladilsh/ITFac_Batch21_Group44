@@ -50,7 +50,7 @@ Before(() => {
 
 // 2. ADMIN SETUP (@requires_parent)
 Before({ tags: "@requires_parent" }, () => {
-    cy.log("🏗️ Creating 'Herbs' parent for Admin test...");
+    cy.log("Creating 'Herbs' parent for Admin test...");
     cy.request({
         method: 'POST',
         url: `${Cypress.env('apiUrl')}/auth/login`,
