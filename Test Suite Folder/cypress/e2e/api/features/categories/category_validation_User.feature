@@ -4,6 +4,7 @@ Feature: Category Validation and Retrieval (Standard User)
     Given the API Service is running
     And a User Auth Token is available
 
+  @seed_data_for_pagination
   Scenario: API_TC_07Verify that the API pagination returns the correct item count
     When I send a GET request to retrieve categories with page 0 and size 5
     Then the category response status should be 200
