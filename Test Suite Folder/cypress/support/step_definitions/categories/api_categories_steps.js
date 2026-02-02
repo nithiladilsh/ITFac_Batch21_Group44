@@ -230,3 +230,23 @@ Then('the response body should contain exactly {int} categories', (count) => {
   cy.log("Categories found: " + JSON.stringify(dataList.map(c => c.name)));
   expect(dataList).to.have.length(count);
 });
+
+// API_TC_08 - Verify that Standard Users are forbidden from creating categories
+When('I send a POST request to create a category with name {string}', (name) => {
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/categories`,
+    failOnStatusCode: false, 
+    headers: {
+      'Authorization': `Bearer ${authToken}`, 
+      'Content-Type': 'application/json'
+    },
+    body: {
+      "name": name,
+      "parent": null
+    }
+  }).then((res) => {
+    apiResponse = res;
+    cy.log("Security Check Response: " + JSON.stringify(res.body));
+  });
+});
