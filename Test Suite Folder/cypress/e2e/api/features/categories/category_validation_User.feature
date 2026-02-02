@@ -24,3 +24,8 @@ Feature: Category Validation and Retrieval (Standard User)
   Scenario: API_TC_11 - Verify that the API rejects negative Page Numbers
     When I send a GET request to retrieve categories with page -1 and size 5
     Then the category response status should be 400
+
+  Scenario: API_TC_12 - Verify API behavior when requesting a Page Number that does not exist
+    When I send a GET request to retrieve categories with page 50 and size 10
+    Then the category response status should be 200
+    And the response body should contain exactly 0 categories
