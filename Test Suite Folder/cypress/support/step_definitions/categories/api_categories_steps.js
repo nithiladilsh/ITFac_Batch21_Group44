@@ -212,6 +212,7 @@ When('I send a GET request to retrieve categories with page {int} and size {int}
   cy.request({
     method: 'GET',
     url: `${Cypress.env('apiUrl')}/categories/page`,
+    failOnStatusCode: false,
     qs: {
       page: page,
       size: size
@@ -248,5 +249,42 @@ When('I send a POST request to create a category with name {string}', (name) => 
   }).then((res) => {
     apiResponse = res;
     cy.log("Security Check Response: " + JSON.stringify(res.body));
+  });
+});
+
+// API_TC_09 - Verify that the API rejects text strings in the Parent ID filter
+When('I send a GET request to retrieve categories with parentId filter {string}', (filterValue) => {
+  cy.request({
+    method: 'GET',
+    url: `${Cypress.env('apiUrl')}/categories/page`, 
+    failOnStatusCode: false, 
+    qs: {
+      parentId: filterValue
+    },
+    headers: {
+      'Authorization': `Bearer ${authToken}`
+    }
+  }).then((res) => {
+    apiResponse = res;
+    cy.log("Filter Validation Response: " + JSON.stringify(res.body));
+  });
+});
+
+// API_TC_10 - Verify that the API rejects invalid Page Strings (e.g. "one")
+When('I send a GET request to retrieve categories with invalid page {string} and size {int}', (pageStr, size) => {
+  cy.request({
+    method: 'GET',
+    url: `${Cypress.env('apiUrl')}/categories/page`,
+    failOnStatusCode: false, 
+    qs: {
+      page: pageStr, 
+      size: size
+    },
+    headers: {
+      'Authorization': `Bearer ${authToken}`
+    }
+  }).then((res) => {
+    apiResponse = res;
+    cy.log("Invalid Page String Response: " + JSON.stringify(res.body));
   });
 });
