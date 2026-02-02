@@ -152,5 +152,110 @@ Then("the badge should be clearly associated with the low stock plant", () => {
     .should("not.be.empty");
 });
 
+//UI_TC 32: Verify "Add a Plant" button is visible only to Admin on Plant List page
+
+Then('the "Add Plant" button should be visible', () => {
+    plantPage.verifyAddPlantButtonVisible();
+});
+
+Then('the "Add Plant" button should be clickable', () => {
+    plantPage.clickAddPlantButton();
+});
+
+Then('the "Add Plant" button should NOT be visible', () => {
+    plantPage.verifyAddPlantButtonNotVisible();
+});
+
+//UI_TC 33: Verify Add Plant form fields are displayed correctly
+
+When('I click the "Add Plant" button', () => {
+    plantPage.clickAddPlantButton();
+});
+
+Then('the Add Plant form should be visible', () => {
+    plantPage.verifyAddPlantFormVisible();
+});
+
+Then('the "Plant Name" input field should be displayed', () => {
+    plantPage.verifyPlantNameFieldVisible();
+});
+
+Then('the "Category" dropdown should be displayed', () => {
+    plantPage.verifyCategoryDropdownVisible();
+});
+
+Then('the "Price" input field should be displayed', () => {
+    plantPage.verifyPriceFieldVisible();
+});
+
+Then('the "Quantity" input field should be displayed', () => {
+    plantPage.verifyQuantityFieldVisible();
+});
+
+//UI_TC 34: Verify Add Plant form validation messages for required fields
+
+When("I leave all Add Plant fields empty", () => {
+  plantPage.elements.plantNameInput().clear();
+  plantPage.elements.categoryDropdown().select("");
+  plantPage.elements.priceInput().clear();
+  plantPage.elements.quantityInput().clear();
+});
+
+When("I click the Save button", () => {
+  plantPage.clickSaveButton();
+});
+
+Then("validation messages should appear below the respective fields", () => {
+  plantPage.verifyPlantNameErrorVisible();
+  plantPage.verifyCategoryErrorVisible();
+  plantPage.verifyPriceErrorVisible();
+  plantPage.verifyQuantityErrorVisible();
+});
+
+Then("the Add Plant form should not be submitted", () => {
+  cy.url().should("include", "/ui/plants/add");
+});
+
+//UI_TC 35: Verify Category dropdown displays only sub-categories
+
+Then("only sub-categories should be listed in the Category dropdown", () => {
+  plantPage.verifyOnlySubCategoriesDisplayed();
+});
+
+Then("main categories should not be selectable", () => {
+  plantPage.verifyMainCategoriesNotSelectable();
+});
+
+//UI_TC 36: Verify Cancel button returns Admin to Plant List page
+
+Given("I am on the Add Plant page", () => {
+  plantPage.clickAddPlantButton();
+  plantPage.verifyAddPlantFormVisible();
+});
 
 
+When("I enter valid data into the Add Plant form", () => {
+  plantPage.enterValidPlantData();
+});
+
+When('I click the "Cancel" button', () => {
+  plantPage.clickCancelButton();
+});
+
+Then("I should be redirected to the Plant List Page", () => {
+  cy.url().should("include", "/ui/plants");
+  plantPage.verifytableVisible();
+});
+
+Then("no new plant should be created", () => {
+  plantPage.verifyPlantNotCreated("Test Plant Cancel");
+});
+
+Then("previously entered form data should be discarded", () => {
+  cy.visit("/plants/add");
+
+  plantPage.elements.plantNameInput().should("have.value", "");
+  plantPage.elements.priceInput().should("have.value", "");
+  plantPage.elements.quantityInput().should("have.value", "");
+  plantPage.elements.categoryDropdown().should("have.value", "");
+});
