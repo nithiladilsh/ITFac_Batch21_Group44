@@ -1,5 +1,122 @@
-import { Given, When, Then } from "@badeball/cypress-cucumber-preprocessor";
+import { Given, When, Then, Before, After } from "@badeball/cypress-cucumber-preprocessor";
 import categoryPage from "../../../pages/categories/CategoryPage";
+
+// Test Data Names for Cleanup
+const TEST_DATA_NAMES = [
+    "Chives", "Rue", "Vegetables", "Blueberries", "plants", "Temp", "Herbs"
+];
+
+// cleanup function to remove test data
+const cleanUpTestData = () => {
+  cy.log("🧹 Running Cleanup Routine...");
+
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/auth/login`,
+    body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') },
+    failOnStatusCode: false
+  }).then((loginRes) => {
+    if (!loginRes.body.token) return;
+    const token = loginRes.body.token;
+
+    cy.request({
+      method: 'GET',
+      url: `${Cypress.env('apiUrl')}/categories/page?page=0&size=2000`,
+      headers: { 'Authorization': `Bearer ${token}` },
+      failOnStatusCode: false
+    }).then((listRes) => {
+      if (listRes.body && listRes.body.content) {
+        const junkItems = listRes.body.content.filter(c => 
+            TEST_DATA_NAMES.includes(c.name) || c.name.startsWith("plants_")
+        );
+
+        junkItems.forEach((item) => {
+          cy.request({
+            method: 'DELETE',
+            url: `${Cypress.env('apiUrl')}/categories/${item.id}`,
+            headers: { 'Authorization': `Bearer ${token}` },
+            failOnStatusCode: false
+          });
+        });
+      }
+    });
+  });
+};
+
+// 1. GLOBAL BEFORE (Clean Slate)
+Before(() => {
+    cleanUpTestData();
+});
+
+// 2. ADMIN SETUP (@requires_parent)
+Before({ tags: "@requires_parent" }, () => {
+    cy.log("🏗️ Creating 'Herbs' parent for Admin test...");
+    cy.request({
+        method: 'POST',
+        url: `${Cypress.env('apiUrl')}/auth/login`,
+        body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') }
+    }).then((loginRes) => {
+        const token = loginRes.body.token;
+        cy.request({
+            method: 'POST',
+            url: `${Cypress.env('apiUrl')}/categories`,
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: { "name": "Herbs", "parent": null },
+            failOnStatusCode: false
+        });
+    });
+});
+
+// 3. STANDARD USER SETUP (@setup_standard_data)
+Before({ tags: "@setup_standard_data" }, () => {
+    cy.log("Seeding Database for Standard User Tests...");
+    
+    cy.request({
+        method: 'POST',
+        url: `${Cypress.env('apiUrl')}/auth/login`,
+        body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') }
+    }).then((loginRes) => {
+        const token = loginRes.body.token;
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "Vegetables", "parent": null }, failOnStatusCode: false });
+
+        cy.request({ 
+            method: 'POST', 
+            url: `${Cypress.env('apiUrl')}/categories`, 
+            headers, 
+            body: { "name": "Herbs", "parent": null }, 
+            failOnStatusCode: false 
+        }).then((herbsRes) => {
+            const herbsId = herbsRes.body.id;
+
+            if (herbsId) {
+                cy.request({ 
+                    method: 'POST', 
+                    url: `${Cypress.env('apiUrl')}/categories`, 
+                    headers, 
+                    body: { "name": "Chives", "parent": { "id": herbsId } }, 
+                    failOnStatusCode: false 
+                });
+            }
+        });
+
+        for (let i = 1; i <= 15; i++) {
+            const num = i < 10 ? `0${i}` : i;
+            cy.request({ 
+                method: 'POST', 
+                url: `${Cypress.env('apiUrl')}/categories`, 
+                headers, 
+                body: { "name": `plants_${num}`, "parent": null }, 
+                failOnStatusCode: false 
+            });
+        }
+    });
+});
+
+After(() => {
+    cleanUpTestData();
+});
 
 // UI_TC_01: Verify that a user can add a new category with an empty parent category.
 Given("I am on the Category Management Page", () => {

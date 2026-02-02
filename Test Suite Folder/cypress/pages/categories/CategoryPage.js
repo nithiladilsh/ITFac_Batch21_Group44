@@ -62,7 +62,7 @@ class CategoryPage {
   }
 
   enterCategoryName(name) {
-    this.elements.nameInput().should('be.visible').clear().type(name);
+    this.elements.nameInput().should('be.visible').and('not.be.disabled').clear().type(name);
   }
 
   selectParent(parentName) {

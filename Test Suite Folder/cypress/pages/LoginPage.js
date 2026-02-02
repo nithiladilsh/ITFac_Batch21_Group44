@@ -17,8 +17,8 @@ elements = {
   }
 
   submitLogin(username, password) {
-    this.elements.usernameInput().clear().type(username);
-    this.elements.passwordInput().clear().type(password);
+    this.elements.usernameInput().should('be.visible').and('not.be.disabled').clear().type(username);
+    this.elements.passwordInput().should('be.visible').and('not.be.disabled').clear().type(password);
     this.elements.loginBtn().click();
   }
 }
