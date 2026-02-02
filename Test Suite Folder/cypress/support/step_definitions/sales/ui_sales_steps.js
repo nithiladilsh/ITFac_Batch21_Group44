@@ -40,3 +40,28 @@ Then("the dropdown should display a list of available plants", () => {
 Then("each plant entry should display its stock quantity", () => {
     sellPlantPage.verifyPlantHasStockInfo();
 });
+
+Given("I have selected a plant from the dropdown", () => {
+    sellPlantPage.elements.plantDropdown().should("be.visible");
+    sellPlantPage.elements.plantDropdownOptions().then(($options) => {
+        const validOptions = $options.filter((index, option) => {
+            const text = option.text.trim();
+            return text && !text.toLowerCase().includes("select");
+        });
+        if (validOptions.length > 0) {
+            sellPlantPage.elements.plantDropdown().select(validOptions.eq(0).val());
+        }
+    });
+});
+
+When("I enter {string} in the Quantity field", (quantity) => {
+    sellPlantPage.enterQuantity(quantity);
+});
+
+When("I attempt to submit the form", () => {
+    sellPlantPage.submitForm();
+});
+
+Then("a validation error message should be displayed", () => {
+    sellPlantPage.verifyValidationError();
+});
