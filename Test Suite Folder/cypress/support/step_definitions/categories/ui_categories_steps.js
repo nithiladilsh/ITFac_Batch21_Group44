@@ -8,7 +8,7 @@ const TEST_DATA_NAMES = [
 
 // cleanup function to remove test data
 const cleanUpTestData = () => {
-  cy.log("🧹 Running Cleanup Routine...");
+  cy.log("Running Cleanup Routine...");
 
   cy.request({
     method: 'POST',
