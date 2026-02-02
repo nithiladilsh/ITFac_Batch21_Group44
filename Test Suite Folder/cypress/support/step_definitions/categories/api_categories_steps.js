@@ -31,7 +31,7 @@ const cleanUpApiData = () => {
                 });
 
                 if (junkItems.length > 0) {
-                    cy.log(`🧹 Found ${junkItems.length} bugged items. Deleting...`);
+                    cy.log(`Found ${junkItems.length} bugged items. Deleting...`);
                     junkItems.forEach(item => {
                         cy.request({
                             method: 'DELETE',
@@ -104,7 +104,7 @@ Given('an Admin Auth Token is available', () => {
 // ADMIN TEST STEPS (API_TC_01 - API_TC_06)
 
 // API_TC_01 - Verify that the API rejects non-string data types for Category Name
-When('I send a POST request to create a category with numeric name {int}', (numericValue) => {
+When('I send a POST request to create a category with numeric name {int}', () => {
     const uniqueNumericName = Number(Math.floor(10000 + Math.random() * 90000));
 
     cy.request({
