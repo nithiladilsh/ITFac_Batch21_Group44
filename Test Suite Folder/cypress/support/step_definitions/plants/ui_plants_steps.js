@@ -2,14 +2,14 @@ import { Given, When, Then, Before, After } from "@badeball/cypress-cucumber-pre
 import plantPage from "../../../pages/plants/PlantPage";
 
 const TEST_PLANTS = [
-  "Plant 1", "Plant 2", "Plant 3", "Plant 4", "Plant 5",
+  "Testsub", "Aloevera", "Plant 1", "Plant 2", "Plant 3", "Plant 4", "Plant 5",
   "Plant 6", "Plant 7", "Plant 8", "Plant 9", "Plant 10",
   "Plant 11", "Plant 12", "Plant 13", "Plant 14", "Plant 15",
   "Low Stock Plant"
 ];
 
 const cleanUpPlantData = () => {
-  cy.log("Cleaning Plant Test Data...");
+  cy.log("STARTING CLEANUP...");
 
   cy.request({
     method: "POST",
@@ -21,25 +21,91 @@ const cleanUpPlantData = () => {
     failOnStatusCode: false,
   }).then((loginRes) => {
     const token = loginRes.body.token;
+    const headers = { Authorization: `Bearer ${token}` };
 
+    // 1. DELETE PLANTS (Clean up Foreign Keys first)
     cy.request({
       method: "GET",
-      url: `${Cypress.env("apiUrl")}/plants?page=0&size=2000`,
-      headers: { Authorization: `Bearer ${token}` },
+      url: `${Cypress.env("apiUrl")}/plants?page=0&size=2000`, 
+      headers,
       failOnStatusCode: false,
-    }).then((listRes) => {
-      const plantsList = listRes.body.content || listRes.body; // <--- safe fallback
-      const junk = plantsList.filter((p) =>
-        TEST_PLANTS.includes(p.name)
+    }).then((res) => {
+      const plants = res.body.content || res.body;
+      const namesToDelete = [...TEST_PLANTS, "Aloevera"];
+      
+      const junkPlants = plants.filter((p) => 
+         namesToDelete.includes(p.name) || 
+         (p.category && /^P\d+$/.test(p.category.name)) 
       );
 
-      junk.forEach((plant) => {
-        cy.request({
-          method: "DELETE",
-          url: `${Cypress.env("apiUrl")}/plants/${plant.id}`,
-          headers: { Authorization: `Bearer ${token}` },
+      if (junkPlants.length > 0) {
+        cy.log(`Deleting ${junkPlants.length} plants...`);
+        junkPlants.forEach((plant) => {
+          cy.request({
+            method: "DELETE",
+            url: `${Cypress.env("apiUrl")}/plants/${plant.id}`,
+            headers,
+            failOnStatusCode: false
+          });
         });
+      }
+    });
+
+    cy.wait(2000); 
+
+    // 2. DYNAMICALLY IDENTIFY PARENTS & DELETE CATEGORIES
+    cy.request({
+      method: "GET",
+      url: `${Cypress.env("apiUrl")}/categories?page=0&size=2000`,
+      headers,
+      failOnStatusCode: false
+    }).then((res) => {
+      const categories = res.body.content || res.body;
+
+      // A. Find the "Junk Children" (P### or Testsub)
+      const childrenToDelete = categories.filter(c => 
+        /^P\d+$/.test(c.name) || c.name === "Testsub"
+      );
+
+      // B. EXTRACT PARENT IDs from these children
+      const parentIdsToDelete = new Set();
+      
+      childrenToDelete.forEach(child => {
+        if (child.parent && child.parent.id) {
+          parentIdsToDelete.add(child.parent.id);
+        }
       });
+      
+      const testRoot = categories.find(c => c.name === "TestRoot");
+      if (testRoot) parentIdsToDelete.add(testRoot.id);
+
+      // C. Delete Children FIRST
+      if (childrenToDelete.length > 0) {
+        cy.log(`Deleting ${childrenToDelete.length} sub-categories...`);
+        childrenToDelete.forEach(sub => {
+             cy.request({
+                method: "DELETE",
+                url: `${Cypress.env("apiUrl")}/categories/${sub.id}`,
+                headers,
+                failOnStatusCode: false
+             });
+        });
+      }
+      
+      cy.wait(1000);
+
+      // D. Delete the Parents which were discovered
+      if (parentIdsToDelete.size > 0) {
+        cy.log(`Deleting ${parentIdsToDelete.size} detected Parent Categories...`);
+        parentIdsToDelete.forEach(parentId => {
+             cy.request({
+                method: "DELETE",
+                url: `${Cypress.env("apiUrl")}/categories/${parentId}`,
+                headers,
+                failOnStatusCode: false
+             });
+        });
+      }
     });
   });
 };
@@ -52,65 +118,117 @@ Before(() => {
 const createPlantsSequentially = (subCategory, headers) => {
   TEST_PLANTS.forEach((plantName, index) => {
     const isLowStock = index === TEST_PLANTS.length - 1;
-
     const body = {
-  name: plantName, // make sure this is non-empty
-  price: isLowStock ? 200 : 100,
-  quantity: isLowStock ? 2 : 25,
-  category: { id: subCategory.id, name: subCategory.name || "Testsub" } 
-};
+      id: 0, 
+      name: plantName,
+      price: Number(isLowStock ? 200 : 100), 
+      quantity: Number(isLowStock ? 2 : 25),
+      category: {
+        id: subCategory.id,
+        name: subCategory.name
+      }
+    };
 
     cy.request({
       method: "POST",
       url: `${Cypress.env("apiUrl")}/plants/category/${subCategory.id}`,
       headers,
       body,
-      failOnStatusCode: false,
+      failOnStatusCode: false
     }).then((res) => {
-      if (res.status !== 201) cy.log(`⚠️ Skipped ${plantName} - Status: ${res.status}`);
+      if (res.status !== 201 && res.status !== 200) {
+        cy.log(`Failed ${plantName} - Status: ${res.status} - Msg: ${JSON.stringify(res.body)}`);
+      }
     });
   });
 };
 
+// BEFORE HOOK
 Before({ tags: "@setup_plant_data" }, () => {
-  cy.log("🌱 Seeding Plant Test Data...");
+  cy.log("Seeding Plant Test Data...");
 
   cy.request({
     method: "POST",
     url: `${Cypress.env("apiUrl")}/auth/login`,
-    body: {
-      username: Cypress.env("adminUser"),
-      password: Cypress.env("adminPass"),
-    },
+    body: { username: Cypress.env("adminUser"), password: Cypress.env("adminPass") }
   }).then((loginRes) => {
     const token = loginRes.body.token;
     const headers = { Authorization: `Bearer ${token}` };
 
-    cy.request({
-      method: "GET",
-      url: `${Cypress.env("apiUrl")}/categories`,
-      headers,
-    }).then((catRes) => {
-      let subCategory = catRes.body.find(c => c.name === "Testsub");
+    // STEP 1: Ensure a Valid "Main Category" exists
+    const ensureMainCategory = () => {
+      return cy.request({
+        method: "GET",
+        url: `${Cypress.env("apiUrl")}/categories?page=0&size=1000`, 
+        headers
+      }).then((catRes) => {
+        const categories = catRes.body.content || catRes.body; 
+        const existingMain = categories.find(c => c.name === "TestRoot" || c.parent === null);
+        
+        if (existingMain) {
+          return cy.wrap(existingMain.id);
+        } else {
+          cy.log("No Main Category found. Creating 'TestRoot'...");
+          return cy.request({
+            method: "POST",
+            url: `${Cypress.env("apiUrl")}/categories`,
+            headers,
+            body: { name: "TestRoot", parent: null },
+            failOnStatusCode: false
+          }).then((res) => {
+             if (res.status !== 201) throw new Error(`Failed to create TestRoot category. Status: ${res.status}`);
+             return res.body.id;
+          });
+        }
+      });
+    };
 
-      const createPlants = (subCat) => createPlantsSequentially(subCat, headers);
+    // STEP 2: Force-Recreate "Testsub" using the Valid Parent ID
+    const ensureSubCategory = (parentId) => {
+      cy.request({ 
+        method: "GET", 
+        url: `${Cypress.env("apiUrl")}/categories?page=0&size=1000`, 
+        headers 
+      }).then((catRes) => {
+          const categories = catRes.body.content || catRes.body;
+          const existingSub = categories.find(c => c.name === "Testsub");
 
-      if (!subCategory) {
-        cy.request({
-          method: "POST",
-          url: `${Cypress.env("apiUrl")}/categories`,
-          headers,
-          body: { name: "Testsub", parentId: 1 },
-          failOnStatusCode: false,
-        }).then((res) => {
-          subCategory = res.body;
-          cy.log("✅ Sub-category created:", subCategory.id);
-          createPlants(subCategory);
+          const createFreshSub = () => {
+            cy.request({
+              method: "POST",
+              url: `${Cypress.env("apiUrl")}/categories`,
+              headers,
+              body: { name: "Testsub", parent: { id: parentId } }, 
+              failOnStatusCode: false
+            }).then((res) => {
+              if (res.status !== 201) {
+                throw new Error(`Failed to create sub-category! Status: ${res.status} - Msg: ${JSON.stringify(res.body)}`);
+              }
+              cy.log(`Fresh Sub-category created (ID: ${res.body.id})`);
+              createPlantsSequentially(res.body, headers);
+            });
+          };
+
+          if (existingSub) {
+             cy.log(`🗑️ Deleting stale category: ${existingSub.id}`);
+             cy.request({
+               method: "DELETE",
+               url: `${Cypress.env("apiUrl")}/categories/${existingSub.id}`,
+               headers,
+               failOnStatusCode: false
+             }).then(() => {
+               cy.wait(2000); 
+               createFreshSub();
+             });
+          } else {
+             createFreshSub();
+          }
         });
-      } else {
-        cy.log("✅ Sub-category exists:", subCategory.id);
-        createPlants(subCategory);
-      }
+    };
+
+    ensureMainCategory().then((validParentId) => {
+      cy.log(`Using Parent Category ID: ${validParentId}`);
+      ensureSubCategory(validParentId);
     });
   });
 });
@@ -121,13 +239,13 @@ After(() => {
 
 
 // UI_TC_37: Verify that the plant list table is displayed correctly with pagination.
-
 Given("I am on the Plant List Page", () => {
   plantPage.visit();
 });
 
 Given("the number of plants exceeds the default page size", () => {
-  cy.get("tbody tr", { timeout: 15000 }).should("have.length.greaterThan", 1);
+  cy.get("tbody tr", { timeout: 15000 }).should("have.length.at.least", 10);
+  plantPage.elements.paginationControls().should("be.visible");
 });
 
 When("the Plant List page is loaded", () => {
@@ -240,13 +358,11 @@ Then("no plant cards or rows are shown", () => {
 });
 
 //UI_TC_41: Verify “Low” badge is visually displayed on plant card when stock is low
-
 Given("a plant exists with quantity less than 5", () => {
-  // Wait for table to load
-  cy.get("tbody tr").should("have.length.greaterThan", 0);  
-  cy.contains("tbody tr", "Low Stock Plant", { timeout: 10000 }) // <-- wait up to 10s
-    .as("lowStockRow")
-    .should("exist");
+    cy.visit("/plants?page=0&size=100");
+    cy.contains("tbody tr", "Low Stock Plant", { timeout: 10000 })
+        .as("lowStockRow")
+        .should("be.visible");
 });
 
 When("I locate the plant with low quantity", () => {
@@ -254,7 +370,7 @@ When("I locate the plant with low quantity", () => {
 });
 
 Then('a “Low” badge is displayed on the corresponding plant card or rows', () => {
-  cy.get("@lowBadge").should("be.visible").and("contain.text", "Low");
+  plantPage.verifyLowStockBadgeVisible("Low Stock Plant");
 });
 
 Then("the badge should be visually distinct", () => {
@@ -272,41 +388,41 @@ Then("the badge should be clearly associated with the low stock plant", () => {
 //UI_TC 32: Verify "Add a Plant" button is visible only to Admin on Plant List page
 
 Then('the "Add Plant" button should be visible', () => {
-    plantPage.verifyAddPlantButtonVisible();
+  plantPage.verifyAddPlantButtonVisible();
 });
 
 Then('the "Add Plant" button should be clickable', () => {
-    plantPage.clickAddPlantButton();
+  plantPage.clickAddPlantButton();
 });
 
 Then('the "Add Plant" button should NOT be visible', () => {
-    plantPage.verifyAddPlantButtonNotVisible();
+  plantPage.verifyAddPlantButtonNotVisible();
 });
 
 //UI_TC 33: Verify Add Plant form fields are displayed correctly
 
 When('I click the "Add Plant" button', () => {
-    plantPage.clickAddPlantButton();
+  plantPage.clickAddPlantButton();
 });
 
 Then('the Add Plant form should be visible', () => {
-    plantPage.verifyAddPlantFormVisible();
+  plantPage.verifyAddPlantFormVisible();
 });
 
 Then('the "Plant Name" input field should be displayed', () => {
-    plantPage.verifyPlantNameFieldVisible();
+  plantPage.verifyPlantNameFieldVisible();
 });
 
 Then('the "Category" dropdown should be displayed', () => {
-    plantPage.verifyCategoryDropdownVisible();
+  plantPage.verifyCategoryDropdownVisible();
 });
 
 Then('the "Price" input field should be displayed', () => {
-    plantPage.verifyPriceFieldVisible();
+  plantPage.verifyPriceFieldVisible();
 });
 
 Then('the "Quantity" input field should be displayed', () => {
-    plantPage.verifyQuantityFieldVisible();
+  plantPage.verifyQuantityFieldVisible();
 });
 
 //UI_TC 34: Verify Add Plant form validation messages for required fields

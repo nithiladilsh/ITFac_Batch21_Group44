@@ -278,6 +278,15 @@ class PlantPage {
       cy.wrap($cell).invoke("text").should("not.contain", plantName);
     });
   }
+  
+  verifyLowStockBadgeVisible(plantName) {
+      this.elements
+        .tableRows()
+        .contains("tr", plantName)
+        .find(".badge.bg-danger")
+        .should("be.visible")
+        .and("contain.text", "Low");
+    }
 }
 
 export default new PlantPage();
