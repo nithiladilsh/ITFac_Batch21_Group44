@@ -41,3 +41,9 @@ Given("I am logged in as a Standard User", () => {
   loginPage.visit();
   loginPage.submitLogin("testuser", "test123");
 });
+
+// 5. Logout Steps
+Given("I log out", () => {
+  cy.get('a.nav-link.text-danger[href="/ui/logout"]').click();
+  cy.url().should("include", "/login");
+});

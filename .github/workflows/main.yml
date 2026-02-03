@@ -35,7 +35,15 @@ jobs:
         working-directory: "./Test Suite Folder"
         run: |
           npm install -g allure-commandline
-          npx allure generate allure-results --clean -o allure-report
+          npx allure generate allure-results
+
+      - name: Upload Allure Report Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-report
+          path: "./Test Suite Folder/allure-report"
+          retention-days: 20
 
       - name: Deploy Report to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
