@@ -1,6 +1,113 @@
-import { Given, When, Then } from "@badeball/cypress-cucumber-preprocessor";
+import { Given, When, Then, Before, After } from "@badeball/cypress-cucumber-preprocessor";
 import salesPage from "../../../pages/sales/SalesPage";
 import sellPlantPage from "../../../pages/sales/SellPlantPage";
+
+// Test Data - Sales Records to Clean Up
+const TEST_SALE_IDENTIFIERS = {
+    // Use quantity patterns to identify test sales
+    testQuantities: [999, 888, 777],
+};
+
+// Cleanup function for sales test data only
+const cleanUpSalesTestData = () => {
+    cy.log("Cleaning up sales test data...");
+
+    cy.request({
+        method: "POST",
+        url: `${Cypress.env("apiUrl")}/auth/login`,
+        body: { username: Cypress.env("adminUser"), password: Cypress.env("adminPass") },
+        failOnStatusCode: false,
+    }).then((loginRes) => {
+        if (!loginRes.body.token) return;
+        const token = loginRes.body.token;
+        const headers = { Authorization: `Bearer ${token}` };
+
+        // Get all sales records
+        cy.request({
+            method: "GET",
+            url: `${Cypress.env("apiUrl")}/sales/page?page=0&size=2000`,
+            headers,
+            failOnStatusCode: false,
+        }).then((salesRes) => {
+            if (salesRes.body && salesRes.body.content) {
+                // Filter test sales by quantity or other identifier
+                const testSales = salesRes.body.content.filter((sale) =>
+                    TEST_SALE_IDENTIFIERS.testQuantities.includes(sale.quantity),
+                );
+
+                testSales.forEach((sale) => {
+                    cy.request({
+                        method: "DELETE",
+                        url: `${Cypress.env("apiUrl")}/sales/${sale.id}`,
+                        headers,
+                        failOnStatusCode: false,
+                    });
+                });
+            }
+        });
+    });
+};
+
+// Global cleanup before tests
+Before(() => {
+    cleanUpSalesTestData();
+});
+
+// Setup: Create test sales records for delete/view tests
+Before({ tags: "@requires_sales_records" }, () => {
+    cy.log("Creating test sales records using existing plants...");
+
+    cy.request({
+        method: "POST",
+        url: `${Cypress.env("apiUrl")}/auth/login`,
+        body: { username: Cypress.env("adminUser"), password: Cypress.env("adminPass") },
+    }).then((loginRes) => {
+        const token = loginRes.body.token;
+        const headers = { Authorization: `Bearer ${token}` };
+
+        // Get existing plants from the system
+        cy.request({
+            method: "GET",
+            url: `${Cypress.env("apiUrl")}/plants/page?page=0&size=10`,
+            headers,
+            failOnStatusCode: false,
+        }).then((plantsRes) => {
+            if (plantsRes.body && plantsRes.body.content && plantsRes.body.content.length > 0) {
+                // Use the first available plant to create test sales
+                const plant = plantsRes.body.content[0];
+
+                // Create a test sale with identifiable quantity
+                cy.request({
+                    method: "POST",
+                    url: `${Cypress.env("apiUrl")}/sales`,
+                    headers,
+                    body: {
+                        plantId: plant.id,
+                        quantity: 999, // Test identifier quantity
+                    },
+                    failOnStatusCode: false,
+                });
+
+                // Create another test sale
+                cy.request({
+                    method: "POST",
+                    url: `${Cypress.env("apiUrl")}/sales`,
+                    headers,
+                    body: {
+                        plantId: plant.id,
+                        quantity: 888, // Another test identifier
+                    },
+                    failOnStatusCode: false,
+                });
+            }
+        });
+    });
+});
+
+// Cleanup after tests
+After(() => {
+    cleanUpSalesTestData();
+});
 
 Given("I am on the Sales Page", () => {
     salesPage.visit();

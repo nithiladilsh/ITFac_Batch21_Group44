@@ -43,6 +43,7 @@ Feature: Sales Functionality - Admin Scenarios
         Then I should be redirected to the sales list page
         And no new sale should be recorded
 
+    @requires_sales_records
     Scenario: UI TC 24 -  Verify that an Admin can successfully delete a Sales record.
         Given at least one sales record exists in the list
         When I select a sales record from the list
@@ -54,6 +55,7 @@ Feature: Sales Functionality - Admin Scenarios
         And the selected sales record should be removed from the list
         And the Sales list should refresh automatically
 
+    @requires_sales_records
     Scenario: UI TC 25 - Verify that clicking the Delete action triggers a browser confirmation prompt
         Given at least one sales record exists in the list
         When I locate a sales record in the list
