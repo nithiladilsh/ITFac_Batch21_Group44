@@ -49,8 +49,31 @@ Before(() => {
   cleanUpPlantData();
 });
 
+const createPlantsSequentially = (subCategory, headers) => {
+  TEST_PLANTS.forEach((plantName, index) => {
+    const isLowStock = index === TEST_PLANTS.length - 1;
+
+    const body = {
+  name: plantName, // make sure this is non-empty
+  price: isLowStock ? 200 : 100,
+  quantity: isLowStock ? 2 : 25,
+  category: { id: subCategory.id, name: subCategory.name || "Testsub" } 
+};
+
+    cy.request({
+      method: "POST",
+      url: `${Cypress.env("apiUrl")}/plants/category/${subCategory.id}`,
+      headers,
+      body,
+      failOnStatusCode: false,
+    }).then((res) => {
+      if (res.status !== 201) cy.log(`⚠️ Skipped ${plantName} - Status: ${res.status}`);
+    });
+  });
+};
+
 Before({ tags: "@setup_plant_data" }, () => {
-  cy.log("Seeding Plant Test Data...");
+  cy.log("🌱 Seeding Plant Test Data...");
 
   cy.request({
     method: "POST",
@@ -59,31 +82,38 @@ Before({ tags: "@setup_plant_data" }, () => {
       username: Cypress.env("adminUser"),
       password: Cypress.env("adminPass"),
     },
-    failOnStatusCode: false,
   }).then((loginRes) => {
     const token = loginRes.body.token;
     const headers = { Authorization: `Bearer ${token}` };
 
-    TEST_PLANTS.forEach((plant, index) => {
-      cy.request({
-        method: "POST",
-        url: `${Cypress.env("apiUrl")}/plants`,
-        headers,
-        body: {
-          name: plant,
-          price: index === 15 ? 200 : 100, // last plant = low stock
-          quantity: index === 15 ? 2 : 10,
-        },
-        failOnStatusCode: false, // prevent test from failing if POST fails
-      }).then((res) => {
-        if (res.status !== 201 && res.status !== 200) {
-          cy.log(`Skipped creating ${plant} — status: ${res.status}`);
-        }
-      });
+    cy.request({
+      method: "GET",
+      url: `${Cypress.env("apiUrl")}/categories`,
+      headers,
+    }).then((catRes) => {
+      let subCategory = catRes.body.find(c => c.name === "Testsub");
+
+      const createPlants = (subCat) => createPlantsSequentially(subCat, headers);
+
+      if (!subCategory) {
+        cy.request({
+          method: "POST",
+          url: `${Cypress.env("apiUrl")}/categories`,
+          headers,
+          body: { name: "Testsub", parentId: 1 },
+          failOnStatusCode: false,
+        }).then((res) => {
+          subCategory = res.body;
+          cy.log("✅ Sub-category created:", subCategory.id);
+          createPlants(subCategory);
+        });
+      } else {
+        cy.log("✅ Sub-category exists:", subCategory.id);
+        createPlants(subCategory);
+      }
     });
   });
 });
-
 
 After(() => {
   cleanUpPlantData();
@@ -97,7 +127,7 @@ Given("I am on the Plant List Page", () => {
 });
 
 Given("the number of plants exceeds the default page size", () => {
-  plantPage.elements.tableRows().should("have.length.greaterThan", 1);
+  cy.get("tbody tr", { timeout: 15000 }).should("have.length.greaterThan", 1);
 });
 
 When("the Plant List page is loaded", () => {
@@ -212,25 +242,23 @@ Then("no plant cards or rows are shown", () => {
 //UI_TC_41: Verify “Low” badge is visually displayed on plant card when stock is low
 
 Given("a plant exists with quantity less than 5", () => {
-  cy.contains("Low").should("exist");
+  // Wait for table to load
+  cy.get("tbody tr").should("have.length.greaterThan", 0);  
+  cy.contains("tbody tr", "Low Stock Plant", { timeout: 10000 }) // <-- wait up to 10s
+    .as("lowStockRow")
+    .should("exist");
 });
 
 When("I locate the plant with low quantity", () => {
-  cy.contains("Low")
-    .closest("tr")
-    .as("lowStockRow");
+  cy.get("@lowStockRow").find(".badge.bg-danger").as("lowBadge");
 });
 
 Then('a “Low” badge is displayed on the corresponding plant card or rows', () => {
-  cy.get("@lowStockRow")
-    .contains("Low")
-    .should("be.visible");
+  cy.get("@lowBadge").should("be.visible").and("contain.text", "Low");
 });
 
 Then("the badge should be visually distinct", () => {
-  cy.get("@lowStockRow")
-    .find(".badge")
-    .should("have.class", "bg-danger");
+  cy.get("@lowBadge").should("have.class", "bg-danger");
 });
 
 Then("the badge should be clearly associated with the low stock plant", () => {
@@ -238,7 +266,7 @@ Then("the badge should be clearly associated with the low stock plant", () => {
     .find("td")
     .first()
     .invoke("text")
-    .should("not.be.empty");
+    .should("contain", "Low Stock Plant");
 });
 
 //UI_TC 32: Verify "Add a Plant" button is visible only to Admin on Plant List page
