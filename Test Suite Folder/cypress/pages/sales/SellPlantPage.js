@@ -4,6 +4,7 @@ class SellPlantPage {
         plantDropdownOptions: () => this.elements.plantDropdown().find("option"),
         quantityField: () => cy.get("#quantity"),
         submitButton: () => cy.contains("button", "Sell"),
+        cancelButton: () => cy.contains("a", "Cancel"),
         validationError: () =>
             cy.get(".error-message, .alert-danger, [class*='error'], [role='alert']"),
     };
@@ -39,6 +40,10 @@ class SellPlantPage {
 
     submitForm() {
         this.elements.submitButton().click();
+    }
+
+    clickCancel() {
+        this.elements.cancelButton().click();
     }
 
     verifyValidationError() {
