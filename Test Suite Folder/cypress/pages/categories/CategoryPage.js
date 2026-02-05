@@ -368,6 +368,47 @@ class CategoryPage {
       expect(originalValues).to.deep.equal(sortedValues);
     });
   }  
+
+  // UI_TC_51 - Click the Name column header
+  clickNameColumnHeader() {
+    // Finds the header containing "Name" (e.g., "Category Name")
+    cy.get('thead th')
+      .contains(/Name/i) 
+      .click({ force: true });
+  }
+
+  // Helper to get all text values from the Name column (Index 1)
+  getNameColumnValues() {
+    return this.elements.categoryTable().find('tbody tr').then(($rows) => {
+      return $rows.map((index, row) => {
+        return Cypress.$(row).find('td').eq(1).text().trim();
+      }).get();
+    });
+  }
+
+  // Verify the Name column is sorted
+  verifyNameColumnSorted(order = 'asc') {
+    cy.wait(1000);
+
+    this.getNameColumnValues().then((values) => {
+      const originalValues = [...values];
+      const sortedValues = [...originalValues].sort((a, b) => {
+        return a.localeCompare(b); 
+      });
+
+      if (order === 'desc') {
+        sortedValues.reverse();
+      }
+
+      const uiString = JSON.stringify(originalValues);
+      const expectedString = JSON.stringify(sortedValues);
+      
+      cy.log(`UI: ${uiString}`);
+      cy.log(`Exp: ${expectedString}`);
+
+      expect(originalValues, `\nUI Found: ${uiString}\nExpected: ${expectedString}\n`).to.deep.equal(sortedValues);
+    });
+  }
 }
 
 export default new CategoryPage();

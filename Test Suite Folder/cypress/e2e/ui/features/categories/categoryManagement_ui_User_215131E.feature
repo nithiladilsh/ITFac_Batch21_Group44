@@ -20,3 +20,11 @@ Feature: Category Management (User Scenarios)
       Then the Parent Category column should be sorted in ascending order
       When I click the "Parent" column header to sort descending
       Then the Parent Category column should be sorted in descending order
+
+    @setup_standard_data
+    Scenario: UI TC 51 - Verify that Name column supports Alphabetical Sorting
+      Given at least one Category exists
+      When I click the "Name" column header to sort ascending
+      Then the Name column should be sorted in ascending order
+      When I click the "Name" column header to sort descending
+      Then the Name column should be sorted in descending order

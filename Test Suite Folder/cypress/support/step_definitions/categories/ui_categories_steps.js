@@ -409,3 +409,62 @@ When('I click the "Parent" column header to sort descending', () => {
 Then('the Parent Category column should be sorted in descending order', () => {
   categoryPage.verifyParentColumnSorted('desc');
 });
+
+// UI_TC_51 - Verify that Name column supports Alphabetical Sorting
+
+When('I click the "Name" column header to sort ascending', () => {
+  categoryPage.clickNameColumnHeader();
+  cy.wait(1000);
+  cy.wrap(null).then(() => {
+    return tryToAchieveSortOrder('asc', 0);
+  });
+});
+
+Then('the Name column should be sorted in ascending order', () => {
+  categoryPage.verifyNameColumnSorted('asc');
+});
+
+When('I click the "Name" column header to sort descending', () => {
+  categoryPage.clickNameColumnHeader();
+  cy.wait(1000);
+  cy.wrap(null).then(() => {
+    return tryToAchieveSortOrder('desc', 0);
+  });
+});
+
+Then('the Name column should be sorted in descending order', () => {
+  categoryPage.verifyNameColumnSorted('desc');
+});
+
+function tryToAchieveSortOrder(targetOrder, attempts) {
+  if (attempts >= 3) {
+    cy.log("Max attempts reached. Stopping retry.");
+    return; 
+  }
+
+  categoryPage.getNameColumnValues().then((values) => {
+    if (values.length < 2) return;
+
+    const first = values[0];
+    const last = values[values.length - 1];
+    const isDescending = first.localeCompare(last) > 0;
+    const isAscending = !isDescending;
+
+    // Log current status
+    cy.log(`Attempt ${attempts + 1}: Current is ${isDescending ? 'DESC' : 'ASC'}. Target is ${targetOrder.toUpperCase()}`);
+
+    let needClick = false;
+    if (targetOrder === 'asc' && !isAscending) needClick = true;
+    if (targetOrder === 'desc' && !isDescending) needClick = true;
+
+    if (needClick) {
+      cy.log("Incorrect order. Clicking header again...");
+      categoryPage.clickNameColumnHeader();
+      cy.wait(1000);
+      // Recursively try again
+      tryToAchieveSortOrder(targetOrder, attempts + 1);
+    } else {
+      cy.log("Order matches! Proceeding.");
+    }
+  });
+}
