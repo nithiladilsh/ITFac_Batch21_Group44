@@ -399,6 +399,169 @@ Then('the "Add Plant" button should NOT be visible', () => {
   plantPage.verifyAddPlantButtonNotVisible();
 });
 
+// UI_TC_53: Edit button visibility for Admin
+Given("the Plant list is displayed", () => {
+  plantPage.visit();
+  plantPage.verifytableVisible();
+});
+
+When("I navigate to the Plant List", () => {
+  plantPage.visit();
+  plantPage.verifytableVisible();
+});
+
+When("I locate a plant row", () => {
+  plantPage.elements.tableRows().should("have.length.greaterThan", 0, { timeout: 15000 })
+    .first()
+    .should("be.visible")
+    .as("targetPlantRow");
+});
+
+Then('I should see the {string} button for that row', (buttonLabel) => {
+  cy.get("@targetPlantRow").within(() => {
+    cy.get(
+      'a[title="Edit"], a[aria-label="Edit"], button[aria-label="Edit"], button[title="Edit"], .btn-edit, .edit-btn, .action-edit, i.bi-pencil-square, .bi-pencil-square, i.bi.bi-pencil-square'
+    )
+      .first()
+      .should("be.visible");
+  });
+});
+
+Then('the {string} button should be enabled', (buttonLabel) => {
+  cy.get("@targetPlantRow").within(() => {
+    cy.get('a[title="Edit"], a[aria-label="Edit"], button[aria-label="Edit"], button[title="Edit"], .btn-edit, .edit-btn, .action-edit')
+      .first()
+      .should("be.visible")
+      .and((el) => {
+        expect(el).not.to.have.class("disabled");
+        expect(el).not.to.have.attr("aria-disabled", "true");
+      });
+  });
+});
+
+// UI_TC_54: Verify that clicking "Edit" opens the Edit Plant page with pre-filled data
+
+Given('a plant {string} exists with price {string}', (plantName, price) => {
+  cy.request({
+    method: "POST",
+    url: `${Cypress.env("apiUrl")}/auth/login`,
+    body: {
+      username: Cypress.env("adminUser"),
+      password: Cypress.env("adminPass"),
+    }
+  }).then((loginRes) => {
+    const token = loginRes.body.token;
+    const headers = { Authorization: `Bearer ${token}` };
+
+    cy.request({
+      method: "GET",
+      url: `${Cypress.env("apiUrl")}/categories?page=0&size=1000`,
+      headers
+    }).then((catRes) => {
+      const categories = catRes.body.content || catRes.body;
+      const subCategory = categories.find(c => c.parent !== null) || categories[0];
+
+      cy.request({
+        method: "POST",
+        url: `${Cypress.env("apiUrl")}/plants/category/${subCategory.id}`,
+        headers,
+        body: {
+          id: 0,
+          name: plantName,
+          price: Number(price),
+          quantity: 15,
+          category: {
+            id: subCategory.id,
+            name: subCategory.name
+          }
+        },
+        failOnStatusCode: false
+      }).then((plantRes) => {
+        cy.log(`Plant "${plantName}" created with ID: ${plantRes.body.id}`);
+        cy.wrap(plantRes.body.id).as('createdPlantId');
+      });
+    });
+  });
+
+  cy.wait(1000);
+});
+
+When('I click {string} on plant {string}', (action, plantName) => {
+  plantPage.clickEditButtonForPlant(plantName);
+});
+
+Then('the Edit Plant page should open', () => {
+  cy.url().should("include", "/ui/plants/edit/");
+});
+
+Then('the Name field should show {string}', (expectedName) => {
+  plantPage.elements.plantNameInput().should('have.value', expectedName);
+});
+
+Then('the Price field should show {string}', (expectedPrice) => {
+  plantPage.elements.priceInput().invoke('val').then((actualPrice) => {
+    // Compare as numbers to handle 10 vs 10.0
+    expect(parseFloat(actualPrice)).to.equal(parseFloat(expectedPrice));
+  });
+});
+
+Then('the Category field should be populated', () => {
+  plantPage.elements.categoryDropdown().should('not.have.value', '');
+});
+
+Then('the Quantity field should be populated', () => {
+  plantPage.elements.quantityInput().invoke('val').then((val) => {
+    expect(val).to.not.be.empty;
+    expect(Number(val)).to.be.greaterThan(0);
+  });
+});
+
+// UI_TC_55: Verify updating Price with a valid value saves successfully
+
+When('I change the Price to {string}', (newPrice) => {
+  plantPage.updatePrice(newPrice);
+});
+
+Then('a success message should be displayed', () => {
+  plantPage.verifySuccessMessage();
+});
+
+Then('the plant {string} should display price {string}', (plantName, expectedPrice) => {
+  plantPage.verifyPlantPrice(plantName, expectedPrice);
+});
+
+// UI_TC_56: Verify updating Quantity with a valid value saves successfully
+
+When('I change the Quantity to {string}', (newQuantity) => {
+  plantPage.updateQuantity(newQuantity);
+});
+
+Then('the plant {string} should display quantity {string}', (plantName, expectedQuantity) => {
+  plantPage.verifyPlantQuantity(plantName, expectedQuantity);
+});
+
+// UI_TC_57: Verify validation error when updating Price to a negative value
+
+Then('a price validation error should be displayed', () => {
+  plantPage.verifyPriceValidationError();
+});
+
+Then('the error message should contain {string}', (expectedMessage) => {
+  plantPage.verifyErrorMessageContains(expectedMessage);
+});
+
+Then('I should remain on the Edit Plant page', () => {
+  plantPage.verifyOnEditPage();
+});
+
+// UI_TC_58: Verify validation error when updating Quantity to a negative value
+
+Then('a quantity validation error should be displayed', () => {
+  plantPage.verifyQuantityValidationError();
+});
+
+
+
 //UI_TC 33: Verify Add Plant form fields are displayed correctly
 
 When('I click the "Add Plant" button', () => {
