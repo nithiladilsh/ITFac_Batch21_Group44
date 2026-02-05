@@ -27,7 +27,7 @@ const cleanUpTestData = () => {
     }).then((listRes) => {
       if (listRes.body && listRes.body.content) {
         const junkItems = listRes.body.content.filter(c =>
-          TEST_DATA_NAMES.includes(c.name) || c.name.startsWith("plants_")
+          TEST_DATA_NAMES.includes(c.name) || c.name.startsWith("plants_") || c.name.startsWith("sort_")
         );
 
         junkItems.forEach((item) => {
@@ -131,6 +131,52 @@ Before({ tags: "@setup_duplicate_data" }, () => {
             failOnStatusCode: false
         });
     });
+});
+
+Before({ tags: "@setup_sorting_data" }, () => {
+  cy.log("Seeding specific data for Sorting Test...");
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/auth/login`,
+    body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') }
+  }).then((loginRes) => {
+    const token = loginRes.body.token;
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    // Fetch and delete potential leftovers
+    cy.request({
+        method: 'GET',
+        url: `${Cypress.env('apiUrl')}/categories/page?page=0&size=2000`,
+        headers,
+        failOnStatusCode: false
+    }).then((listRes) => {
+        if (listRes.body && listRes.body.content) {
+            const leftovers = listRes.body.content.filter(c => c.name.startsWith("sort_"));
+            leftovers.forEach(item => {
+                cy.request({ method: 'DELETE', url: `${Cypress.env('apiUrl')}/categories/${item.id}`, headers, failOnStatusCode: false });
+            });
+        }
+    });
+
+    // Create Parent A
+    cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Parent_A", "parent": null }, failOnStatusCode: false })
+      .then((resA) => {
+         if (resA.body.id) {
+             cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Child_A", "parent": { "id": resA.body.id } }, failOnStatusCode: false });
+         }
+      });
+
+    // Create Parent Z
+    cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Parent_Z", "parent": null }, failOnStatusCode: false })
+      .then((resZ) => {
+         if (resZ.body.id) {
+             cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Child_Z", "parent": { "id": resZ.body.id } }, failOnStatusCode: false });
+         }
+      });
+
+    // Create Orphan
+    cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Child_Orphan", "parent": null }, failOnStatusCode: false });
+  });
 });
 
 After(() => {
@@ -450,7 +496,7 @@ Then('the "Delete" button should not be visible or should be disabled for each C
 
 // UI_TC_50 - Verify that Parent Category column supports Alphabetical Sorting
 Given("multiple categories with different parents exist", () => {
-    categoryPage.ensureAtLeastOneCategoryExists("Cat_A_Parent"); 
+    cy.reload();
 });
 
 When('I click the "Parent" column header to sort ascending', () => {
