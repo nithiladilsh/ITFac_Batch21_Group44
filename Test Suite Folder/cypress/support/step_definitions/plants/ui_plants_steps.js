@@ -119,7 +119,6 @@ const createPlantsSequentially = (subCategory, headers) => {
   TEST_PLANTS.forEach((plantName, index) => {
     const isLowStock = index === TEST_PLANTS.length - 1;
     const body = {
-      id: 0, 
       name: plantName,
       price: Number(isLowStock ? 200 : 100), 
       quantity: Number(isLowStock ? 2 : 25),
