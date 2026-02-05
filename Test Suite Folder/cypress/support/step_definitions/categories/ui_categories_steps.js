@@ -388,18 +388,24 @@ Then('the "Delete" button should not be visible or should be disabled for each C
 });
 
 // UI_TC_50 - Verify that Parent Category column supports Alphabetical Sorting
-// When('I click the "Parent" column header to sort ascending', () => {
-//   categoryPage.clickParentColumnHeader();
-// });
+Given("multiple categories with different parents exist", () => {
+    categoryPage.ensureAtLeastOneCategoryExists("Cat_A_Parent"); 
+});
 
-// Then('the Parent Category column should be sorted in ascending order', () => {
-//   categoryPage.verifyParentColumnSorted('asc');
-// });
+When('I click the "Parent" column header to sort ascending', () => {
+  categoryPage.clickParentColumnHeader();
+  cy.wait(500); 
+});
 
-// When('I click the "Parent" column header to sort descending', () => {
-//   categoryPage.clickParentColumnHeader();
-// });
+Then('the Parent Category column should be sorted in ascending order', () => {
+  categoryPage.verifyParentColumnSorted('asc');
+});
 
-// Then('the Parent Category column should be sorted in descending order', () => {
-//   categoryPage.verifyParentColumnSorted('desc');
-// });
+When('I click the "Parent" column header to sort descending', () => {
+  categoryPage.clickParentColumnHeader();
+  cy.wait(500);
+});
+
+Then('the Parent Category column should be sorted in descending order', () => {
+  categoryPage.verifyParentColumnSorted('desc');
+});

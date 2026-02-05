@@ -332,28 +332,42 @@ class CategoryPage {
     });
   }
 
-  // UI_TC_50 - Verify that Parent Category column supports Alphabetical Sorting
-  // Click the Parent column header to sort
-  // clickParentColumnHeader() {
-  //   cy.get('th').contains('Parent').click();
-  // }
+  // UI_TC_50 - Click the Parent Category column header
+  clickParentColumnHeader() {
+    cy.contains('th', 'Parent').click();
+  }
 
-  // // Get all Parent column values as an array
-  // getParentColumnValues() {
-  //   return cy.get('tbody tr td:nth-child(3)').then($cells => {
-  //     return Cypress._.map($cells, cell => cell.innerText.trim());
-  //   });
-  // }
+  getParentColumnValues() {
+    return this.elements.categoryTable().find('tbody tr').then(($rows) => {
+      const strings = $rows.map((index, row) => {
+        return Cypress.$(row).find('td').eq(2).text().trim();
+      }).get(); 
+      
+      return strings; 
+    });
+  }
 
-  // // Verify sorted order
-  // verifyParentColumnSorted(order = 'asc') {
-  //   this.getParentColumnValues().then(values => {
-  //     const sorted = [...values].sort((a, b) => a.localeCompare(b));
-  //     if (order === 'desc') sorted.reverse();
-  //     expect(values, `Parent column sorted ${order}`).to.deep.equal(sorted);
-  //   });
-  // }
-  
+  // Verify the column is sorted
+  verifyParentColumnSorted(order = 'asc') {
+    this.getParentColumnValues().then((values) => {
+      const originalValues = [...values];
+      const sortedValues = [...originalValues].sort((a, b) => {
+        if (a === '' && b !== '') return -1;
+        if (a !== '' && b === '') return 1;
+        return a.toLowerCase().localeCompare(b.toLowerCase());
+      });
+
+      if (order === 'desc') {
+        sortedValues.reverse();
+      }
+
+      cy.log(`Checking ${order} order...`);
+      cy.log(`UI Found: ${JSON.stringify(originalValues)}`);
+      cy.log(`Expected: ${JSON.stringify(sortedValues)}`);
+      
+      expect(originalValues).to.deep.equal(sortedValues);
+    });
+  }  
 }
 
 export default new CategoryPage();
