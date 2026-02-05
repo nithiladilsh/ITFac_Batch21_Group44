@@ -28,3 +28,11 @@ Feature: Category Management (User Scenarios)
       Then the Name column should be sorted in ascending order
       When I click the "Name" column header to sort descending
       Then the Name column should be sorted in descending order
+
+    @setup_standard_data
+    Scenario: UI TC 52 - Verify that ID column supports Numeric Sorting
+      Given at least one Category exists
+      When I click the "ID" column header to sort ascending
+      Then the ID column should be sorted in ascending order
+      When I click the "ID" column header to sort descending
+      Then the ID column should be sorted in descending order

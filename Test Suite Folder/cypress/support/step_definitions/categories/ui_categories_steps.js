@@ -137,6 +137,67 @@ After(() => {
   cleanUpTestData();
 });
 
+// Helper: Numeric Retry Logic ---
+function tryToAchieveNumericSortOrder(targetOrder, attempts) {
+  if (attempts >= 3) return; 
+
+  categoryPage.getIdColumnValues().then((values) => {
+    if (values.length < 2) return;
+
+    const first = values[0];
+    const last = values[values.length - 1];
+
+    // Numeric Comparison
+    const isDescending = first > last;
+    const isAscending = !isDescending;
+
+    let needClick = false;
+    if (targetOrder === 'asc' && !isAscending) needClick = true;
+    if (targetOrder === 'desc' && !isDescending) needClick = true;
+
+    if (needClick) {
+      cy.log(`ID Sort Incorrect (Current: ${isDescending ? 'DESC' : 'ASC'}). Clicking again...`);
+      categoryPage.clickIdColumnHeader();
+      cy.wait(1000);
+      tryToAchieveNumericSortOrder(targetOrder, attempts + 1);
+    }
+  });
+}
+
+// Helper: Alphabetical Retry Logic 
+function tryToAchieveSortOrder(targetOrder, attempts) {
+  if (attempts >= 3) {
+    cy.log("Max attempts reached. Stopping retry.");
+    return; 
+  }
+
+  categoryPage.getNameColumnValues().then((values) => {
+    if (values.length < 2) return;
+
+    const first = values[0];
+    const last = values[values.length - 1];
+    const isDescending = first.localeCompare(last) > 0;
+    const isAscending = !isDescending;
+
+    // Log current status
+    cy.log(`Attempt ${attempts + 1}: Current is ${isDescending ? 'DESC' : 'ASC'}. Target is ${targetOrder.toUpperCase()}`);
+
+    let needClick = false;
+    if (targetOrder === 'asc' && !isAscending) needClick = true;
+    if (targetOrder === 'desc' && !isDescending) needClick = true;
+
+    if (needClick) {
+      cy.log("Incorrect order. Clicking header again...");
+      categoryPage.clickNameColumnHeader();
+      cy.wait(1000);
+      // Recursively try again
+      tryToAchieveSortOrder(targetOrder, attempts + 1);
+    } else {
+      cy.log("Order matches! Proceeding.");
+    }
+  });
+}
+
 // UI_TC_01: Verify that a user can add a new category with an empty parent category.
 Given("I am on the Category Management Page", () => {
   categoryPage.visit();
@@ -436,35 +497,33 @@ Then('the Name column should be sorted in descending order', () => {
   categoryPage.verifyNameColumnSorted('desc');
 });
 
-function tryToAchieveSortOrder(targetOrder, attempts) {
-  if (attempts >= 3) {
-    cy.log("Max attempts reached. Stopping retry.");
-    return; 
-  }
+// UI_TC_52 - Verify that ID column supports Numeric Sorting
 
-  categoryPage.getNameColumnValues().then((values) => {
-    if (values.length < 2) return;
+When('I click the "ID" column header to sort ascending', () => {
+  categoryPage.clickIdColumnHeader();
+  cy.wait(1000);
 
-    const first = values[0];
-    const last = values[values.length - 1];
-    const isDescending = first.localeCompare(last) > 0;
-    const isAscending = !isDescending;
-
-    // Log current status
-    cy.log(`Attempt ${attempts + 1}: Current is ${isDescending ? 'DESC' : 'ASC'}. Target is ${targetOrder.toUpperCase()}`);
-
-    let needClick = false;
-    if (targetOrder === 'asc' && !isAscending) needClick = true;
-    if (targetOrder === 'desc' && !isDescending) needClick = true;
-
-    if (needClick) {
-      cy.log("Incorrect order. Clicking header again...");
-      categoryPage.clickNameColumnHeader();
-      cy.wait(1000);
-      // Recursively try again
-      tryToAchieveSortOrder(targetOrder, attempts + 1);
-    } else {
-      cy.log("Order matches! Proceeding.");
-    }
+  // Use Retry Logic to ensure we get to Ascending
+  cy.wrap(null).then(() => {
+    return tryToAchieveNumericSortOrder('asc', 0);
   });
-}
+});
+
+Then('the ID column should be sorted in ascending order', () => {
+  categoryPage.verifyIdColumnSorted('asc');
+});
+
+When('I click the "ID" column header to sort descending', () => {
+  categoryPage.clickIdColumnHeader();
+  cy.wait(1000);
+
+  // Use Retry Logic for Descending
+  cy.wrap(null).then(() => {
+    return tryToAchieveNumericSortOrder('desc', 0);
+  });
+});
+
+Then('the ID column should be sorted in descending order', () => {
+  categoryPage.verifyIdColumnSorted('desc');
+});
+

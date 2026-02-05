@@ -409,6 +409,38 @@ class CategoryPage {
       expect(originalValues, `\nUI Found: ${uiString}\nExpected: ${expectedString}\n`).to.deep.equal(sortedValues);
     });
   }
+
+  // UI_TC_52 - Click the ID column header
+  clickIdColumnHeader() {
+    cy.get('thead th')
+      .contains(/ID/i) 
+      .click({ force: true });
+  }
+
+  // Helper to get all numeric values from the ID column
+  getIdColumnValues() {
+    return this.elements.categoryTable().find('tbody tr').then(($rows) => {
+      return $rows.map((index, row) => {
+        const text = Cypress.$(row).find('td').eq(0).text().trim();
+        return parseInt(text, 10);
+      }).get();
+    });
+  }
+
+  // Verify the ID column is sorted Numerically
+  verifyIdColumnSorted(order = 'asc') {
+    this.getIdColumnValues().then((values) => {
+      const originalValues = [...values];
+      const sortedValues = [...originalValues].sort((a, b) => {
+        return a - b; 
+      });
+      if (order === 'desc') {
+        sortedValues.reverse();
+      }
+      cy.log(`Checking ID ${order} sort...`);
+      expect(originalValues).to.deep.equal(sortedValues);
+    });
+  }
 }
 
 export default new CategoryPage();
