@@ -114,6 +114,25 @@ Before({ tags: "@setup_standard_data" }, () => {
   });
 });
 
+// 4. DUPLICATE DATA SETUP (@setup_duplicate_data)
+Before({ tags: "@setup_duplicate_data" }, () => {
+    cy.log("Seeding 'plants' for duplicate check...");
+    cy.request({
+        method: 'POST',
+        url: `${Cypress.env('apiUrl')}/auth/login`,
+        body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') }
+    }).then((loginRes) => {
+        const token = loginRes.body.token;
+        cy.request({
+            method: 'POST',
+            url: `${Cypress.env('apiUrl')}/categories`,
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: { "name": "plants", "parent": null },
+            failOnStatusCode: false
+        });
+    });
+});
+
 After(() => {
   cleanUpTestData();
 });
