@@ -4,28 +4,28 @@ class CategoryPage {
     addCategoryBtn: () => cy.contains('Add A Category'),
 
     // Name Input
-    nameInput: () => cy.get('input[name="name"]'), 
+    nameInput: () => cy.get('input[name="name"]'),
 
     // Parent Dropdown 
-    parentDropdown: () => cy.get('select[name="parentId"]'), 
-    
+    parentDropdown: () => cy.get('select[name="parentId"]'),
+
     // Save Button 
     saveBtn: () => cy.contains('button', 'Save'),
 
     // Cancel Button
     cancelBtn: () => cy.contains('Cancel'),
-    
+
     // Success Message
-    successMessage: () => cy.get('.alert-success'), 
-    
+    successMessage: () => cy.get('.alert-success'),
+
     // Category List Table
     categoryList: () => cy.get('table'),
 
     // The main table
-    categoryTable: () => cy.get('table'), 
+    categoryTable: () => cy.get('table'),
 
     // The column headers
-    tableHeaders: () => cy.get('thead th'), 
+    tableHeaders: () => cy.get('thead th'),
 
     // The page numbers at bottom
     paginationControls: () => cy.get('ul.pagination'),
@@ -43,14 +43,25 @@ class CategoryPage {
     filterParentDropdown: () => cy.get('form').find('select'),
 
     // Pagination Buttons
-    nextPageBtn: () => cy.get('ul.pagination').contains('Next').parent(), 
+    nextPageBtn: () => cy.get('ul.pagination').contains('Next').parent(),
     prevPageBtn: () => cy.get('ul.pagination').contains('Previous').parent(),
-    
+
     // First row in the table (to check if data changed)
-    firstCategoryRow: () => cy.get('tbody tr').first().find('td').eq(1), 
+    firstCategoryRow: () => cy.get('tbody tr').first().find('td').eq(1),
 
     // The red error alert banner at the top of the form
-    errorBanner: () => cy.contains('.alert', 'already exists')
+    errorBanner: () => cy.contains('.alert', 'already exists'),
+
+    //215131E
+    // "Delete" button in each category row (finds by title attribute)
+    deleteButton: () => cy.get('button[title="Delete"]'),
+
+    // Delete confirmation modal
+    deleteModal: () => cy.get('#deleteModal'),
+
+    // "Edit" button in each category row (anchor with title)
+    editButton: () => cy.get('a[title="Edit"]'),
+
   };
 
   visit() {
@@ -67,7 +78,7 @@ class CategoryPage {
 
   selectParent(parentName) {
     if (parentName === "empty") {
-      this.elements.parentDropdown().select(0); 
+      this.elements.parentDropdown().select(0);
     } else {
       this.elements.parentDropdown().select(parentName);
     }
@@ -87,16 +98,16 @@ class CategoryPage {
   verifyAddCategoryButtonVisible() {
     this.elements.addCategoryBtn()
       .should('be.visible')
-      .and('not.be.disabled'); 
+      .and('not.be.disabled');
   }
 
   // UI_TC_05 - Verify that the "Parent Category" dropdown updates dynamically after adding a new Category
   verifyParentDropdownContains(optionName) {
     this.elements.parentDropdown()
       .should('be.visible')
-      .find('option')         
-      .contains(optionName)    
-      .should('exist');         
+      .find('option')
+      .contains(optionName)
+      .should('exist');
   }
 
   // UI_TC_06 - Clear the Name field and verify validation error
@@ -147,7 +158,7 @@ class CategoryPage {
   }
 
   // UI_TC_16 - Verify that pagination works correctly in the Category List
-  firstItemName = ""; 
+  firstItemName = "";
 
   captureFirstItemName() {
     this.elements.firstCategoryRow().invoke('text').then((text) => {
@@ -191,24 +202,158 @@ class CategoryPage {
 
   verifyAllRowsContain(term) {
     this.elements.categoryTable().find('tbody tr').each(($row) => {
-      const rowText = $row.text().toLowerCase(); 
+      const rowText = $row.text().toLowerCase();
       expect(rowText).to.contain(term.toLowerCase());
     });
   }
 
   // UI_TC_66 - Verify that the system prevents duplicate categories
   verifyDuplicateError(message) {
-        cy.contains(message).should('be.visible');
+    cy.contains(message).should('be.visible');
   }
 
   // UI_TC_67 - Verify that resetting the search clears the input field
   verifySearchInputEmpty() {
-      this.elements.searchInput().should('have.value', '');
+    this.elements.searchInput().should('have.value', '');
   }
 
   verifyMultipleItems() {
     this.elements.categoryTable().find('tbody tr').should('have.length.gt', 1);
   }
+
+  //215131E
+  // UI_TC_42 - Ensure at least one category exists, create "TemporyC" if not
+  ensureAtLeastOneCategoryExists(tempCategoryName = "TemporyC") {
+    // Check if the "No category found" row is visible
+    cy.get('body').then(($body) => {
+      if ($body.find('td:contains("No category found")').length > 0) {
+        // No categories exist, so create one
+        this.clickAddCategory();
+        this.enterCategoryName(tempCategoryName);
+        this.clickSave();
+        // Optionally, wait for success message or table update
+        this.elements.successMessage().should('be.visible');
+      }
+    });
+  }
+
+  // UI_TC_42 - Verify that the "Delete" button is visible for each Category row
+  verifyDeleteButtonVisibleAndClickable() {
+    this.elements.deleteButton()
+      .should('be.visible')
+      .and('not.be.disabled');
+  }
+
+  // UI_TC_43 - Click the "Delete" button for the first category
+  clickDeleteButtonForFirstCategory() {
+    this.elements.deleteButton().first().click();
+  }
+
+  // UI_TC_43 - Confirm deletion in the modal
+  confirmDeleteInModal() {
+    this.elements.deleteModal().should('be.visible');
+    cy.get('#deleteModal').find('button[type="submit"]').contains('Delete').click();
+  }
+
+  // UI_TC_43 - Verify the success message after deletion
+  verifyDeleteSuccessMessage(message) {
+    this.elements.successMessage().find('span').should('contain', message);
+  }
+
+  // UI_TC_43 - Verify the deleted category is no longer in the list
+  verifyCategoryNotInList(categoryName) {
+    this.elements.categoryTable().should('not.contain', categoryName);
+  }
+
+  // UI_TC_44 - Verify that the "Edit" button is visible for each Category row
+  verifyEditButtonVisibleAndClickable() {
+    this.elements.editButton()
+      .should('be.visible')
+      .and('not.be.disabled');
+  }
+
+  // UI_TC_44 - Click the "Edit" button for the first category
+  clickEditButtonForFirstCategory() {
+    this.elements.editButton().first().click();
+  }
+
+  // UI_TC_44 - Verify navigation to Edit Category form
+  verifyNavigatedToEditForm() {
+    cy.url().should('match', /\/ui\/categories\/edit\/\d+/);
+    cy.get('form').should('be.visible');
+  }
+
+  // UI_TC_47 - Capture the name of the category in the given row index (default: first row)
+  captureCategoryNameAtRow(rowIndex = 0) {
+    cy.get('tbody tr').eq(rowIndex).find('td').eq(1).invoke('text').then((text) => {
+      this._originalCategoryName = text.trim();
+    });
+  }
+
+  // UI_TC_47 - Click the "Cancel" button in the Edit Category form
+  clickEditCancel() {
+    cy.get('form').find('a.btn.btn-secondary').contains('Cancel').click();
+  }
+
+  // UI_TC_47 - Verify navigation back to the Category List after cancel
+  verifyNavigatedBackToCategoryList() {
+    cy.url().should('include', '/categories');
+    cy.contains('Add A Category').should('be.visible');
+  }
+
+  // UI_TC_47 - Capture the current name of the first category row
+  captureFirstCategoryName() {
+    this.elements.firstCategoryRow().invoke('text').then((text) => {
+      this._originalCategoryName = text.trim();
+    });
+  }
+
+  // UI_TC_47 - Verify the first category name is unchanged
+  verifyCategoryNameUnchangedAtRow(rowIndex = 0) {
+    cy.get('tbody tr').eq(rowIndex).find('td').eq(1).invoke('text').then((text) => {
+      expect(text.trim()).to.equal(this._originalCategoryName);
+    });
+  }
+
+  loginAsStandardUser() {
+    cy.visit('/login');
+    cy.get('input[name="username"]').clear().type(Cypress.env('stdUser'));
+    cy.get('input[name="password"]').clear().type(Cypress.env('stdPass'));
+    cy.get('button[type="submit"]').click();
+  }
+  // UI_TC_48 - Verify that the "Edit" button is not visible or is disabled for each Category row (Non-Admin)
+  verifyEditButtonNotVisibleOrDisabled() {
+    this.elements.editButton().then(($btns) => {
+      if ($btns.length) {
+        cy.wrap($btns).each(($btn) => cy.wrap($btn).should('be.disabled'));
+      } else {
+        expect($btns.length).to.eq(0);
+      }
+    });
+  }
+
+  // UI_TC_50 - Verify that Parent Category column supports Alphabetical Sorting
+  // Click the Parent column header to sort
+  // clickParentColumnHeader() {
+  //   cy.get('th').contains('Parent').click();
+  // }
+
+  // // Get all Parent column values as an array
+  // getParentColumnValues() {
+  //   return cy.get('tbody tr td:nth-child(3)').then($cells => {
+  //     return Cypress._.map($cells, cell => cell.innerText.trim());
+  //   });
+  // }
+
+  // // Verify sorted order
+  // verifyParentColumnSorted(order = 'asc') {
+  //   this.getParentColumnValues().then(values => {
+  //     const sorted = [...values].sort((a, b) => a.localeCompare(b));
+  //     if (order === 'desc') sorted.reverse();
+  //     expect(values, `Parent column sorted ${order}`).to.deep.equal(sorted);
+  //   });
+  // }
+  
 }
 
 export default new CategoryPage();

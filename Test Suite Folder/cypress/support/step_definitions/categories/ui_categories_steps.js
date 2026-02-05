@@ -3,7 +3,7 @@ import categoryPage from "../../../pages/categories/CategoryPage";
 
 // Test Data Names for Cleanup
 const TEST_DATA_NAMES = [
-    "Chives", "Rue", "Vegetables", "Blueberries", "plants", "Temp", "Herbs"
+  "Chives", "Rue", "Vegetables", "Blueberries", "plants", "Temp", "Herbs"
 ];
 
 // cleanup function to remove test data
@@ -26,8 +26,8 @@ const cleanUpTestData = () => {
       failOnStatusCode: false
     }).then((listRes) => {
       if (listRes.body && listRes.body.content) {
-        const junkItems = listRes.body.content.filter(c => 
-            TEST_DATA_NAMES.includes(c.name) || c.name.startsWith("plants_")
+        const junkItems = listRes.body.content.filter(c =>
+          TEST_DATA_NAMES.includes(c.name) || c.name.startsWith("plants_")
         );
 
         junkItems.forEach((item) => {
@@ -45,77 +45,77 @@ const cleanUpTestData = () => {
 
 // 1. GLOBAL BEFORE (Clean Slate)
 Before(() => {
-    cleanUpTestData();
+  cleanUpTestData();
 });
 
 // 2. ADMIN SETUP (@requires_parent)
 Before({ tags: "@requires_parent" }, () => {
-    cy.log("Creating 'Herbs' parent for Admin test...");
+  cy.log("Creating 'Herbs' parent for Admin test...");
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/auth/login`,
+    body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') }
+  }).then((loginRes) => {
+    const token = loginRes.body.token;
     cy.request({
-        method: 'POST',
-        url: `${Cypress.env('apiUrl')}/auth/login`,
-        body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') }
-    }).then((loginRes) => {
-        const token = loginRes.body.token;
-        cy.request({
-            method: 'POST',
-            url: `${Cypress.env('apiUrl')}/categories`,
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: { "name": "Herbs", "parent": null },
-            failOnStatusCode: false
-        });
+      method: 'POST',
+      url: `${Cypress.env('apiUrl')}/categories`,
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: { "name": "Herbs", "parent": null },
+      failOnStatusCode: false
     });
+  });
 });
 
 // 3. STANDARD USER SETUP (@setup_standard_data)
 Before({ tags: "@setup_standard_data" }, () => {
-    cy.log("Seeding Database for Standard User Tests...");
-    
+  cy.log("Seeding Database for Standard User Tests...");
+
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/auth/login`,
+    body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') }
+  }).then((loginRes) => {
+    const token = loginRes.body.token;
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "Vegetables", "parent": null }, failOnStatusCode: false });
+
     cy.request({
-        method: 'POST',
-        url: `${Cypress.env('apiUrl')}/auth/login`,
-        body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') }
-    }).then((loginRes) => {
-        const token = loginRes.body.token;
-        const headers = { 'Authorization': `Bearer ${token}` };
+      method: 'POST',
+      url: `${Cypress.env('apiUrl')}/categories`,
+      headers,
+      body: { "name": "Herbs", "parent": null },
+      failOnStatusCode: false
+    }).then((herbsRes) => {
+      const herbsId = herbsRes.body.id;
 
-        cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "Vegetables", "parent": null }, failOnStatusCode: false });
-
-        cy.request({ 
-            method: 'POST', 
-            url: `${Cypress.env('apiUrl')}/categories`, 
-            headers, 
-            body: { "name": "Herbs", "parent": null }, 
-            failOnStatusCode: false 
-        }).then((herbsRes) => {
-            const herbsId = herbsRes.body.id;
-
-            if (herbsId) {
-                cy.request({ 
-                    method: 'POST', 
-                    url: `${Cypress.env('apiUrl')}/categories`, 
-                    headers, 
-                    body: { "name": "Chives", "parent": { "id": herbsId } }, 
-                    failOnStatusCode: false 
-                });
-            }
+      if (herbsId) {
+        cy.request({
+          method: 'POST',
+          url: `${Cypress.env('apiUrl')}/categories`,
+          headers,
+          body: { "name": "Chives", "parent": { "id": herbsId } },
+          failOnStatusCode: false
         });
-
-        for (let i = 1; i <= 15; i++) {
-            const num = i < 10 ? `0${i}` : i;
-            cy.request({ 
-                method: 'POST', 
-                url: `${Cypress.env('apiUrl')}/categories`, 
-                headers, 
-                body: { "name": `plants_${num}`, "parent": null }, 
-                failOnStatusCode: false 
-            });
-        }
+      }
     });
+
+    for (let i = 1; i <= 15; i++) {
+      const num = i < 10 ? `0${i}` : i;
+      cy.request({
+        method: 'POST',
+        url: `${Cypress.env('apiUrl')}/categories`,
+        headers,
+        body: { "name": `plants_${num}`, "parent": null },
+        failOnStatusCode: false
+      });
+    }
+  });
 });
 
 After(() => {
-    cleanUpTestData();
+  cleanUpTestData();
 });
 
 // UI_TC_01: Verify that a user can add a new category with an empty parent category.
@@ -158,8 +158,8 @@ When('I click the "Cancel" button', () => {
 });
 
 Then('I should be redirected to the Category List', () => {
-  cy.url().should('include', '/categories'); 
-  cy.contains('Add A Category').should('be.visible'); 
+  cy.url().should('include', '/categories');
+  cy.contains('Add A Category').should('be.visible');
 });
 
 // UI_TC_04 - Verify that the "Add Category" button is visible for an Admin User
@@ -259,18 +259,128 @@ Then('all items in the list should contain {string}', (term) => {
 
 // UI_TC_66 - Verify that the system prevents duplicate categories
 Then('I should see the error banner {string}', (message) => {
-    categoryPage.verifyDuplicateError(message);
+  categoryPage.verifyDuplicateError(message);
 });
 
 // UI_TC_67 - Verify that resetting the search clears the input field
 When('I click the "Reset" button', () => {
-    categoryPage.clickReset();
+  categoryPage.clickReset();
 });
 
 Then('the Search bar should be empty', () => {
-    categoryPage.verifySearchInputEmpty();
+  categoryPage.verifySearchInputEmpty();
 });
 
 Then('the category list should show multiple items', () => {
   categoryPage.verifyMultipleItems();
 });
+
+//215131E
+// UI_TC_42 - Verify that the "Delete" button is visible and clickable
+Given('if no Category exists, I create a new Category named "TemporyC"', function () {
+  categoryPage.ensureAtLeastOneCategoryExists("TemporyC");
+});
+
+When("I view the Category List", function () {
+  // This step simply ensures the category table is visible (i.e., the list is loaded)
+  categoryPage.verifyTableVisible();
+});
+
+Then('the "Delete" button should be visible for each Category row', () => {
+  categoryPage.verifyDeleteButtonVisibleAndClickable();
+});
+
+Then('the "Delete" button should be enabled and clickable', () => {
+  categoryPage.verifyDeleteButtonVisibleAndClickable();
+});
+
+// UI_TC_43 - Verify the "Delete" button functionality
+When('I click the "Delete" button for the first category', () => {
+  categoryPage.elements.deleteButton().first().click();
+});
+
+When('I confirm the deletion in the confirmation dialog', () => {
+  categoryPage.elements.deleteModal().should('be.visible');
+  cy.get('#deleteModal').find('button[type="submit"]').contains('Delete').click();
+});
+
+Then('the deleted category should no longer appear in the Category List', () => {
+  categoryPage.elements.noResultsRow().should('be.visible');
+});
+
+// UI_TC_44 - Verify that the "Edit" button is visible and clickable
+Then('the "Edit" button should be visible for each Category row', () => {
+  categoryPage.verifyEditButtonVisibleAndClickable();
+});
+
+Then('the "Edit" button should be enabled and clickable', () => {
+  categoryPage.verifyEditButtonVisibleAndClickable();
+});
+
+When('I click the "Edit" button for the first category', () => {
+  categoryPage.clickEditButtonForFirstCategory();
+});
+
+Then('I should be navigated to the Edit Category form', () => {
+  categoryPage.verifyNavigatedToEditForm();
+});
+
+// UI_TC_47 - Cancel button in Edit Category
+When('I note the current name of the first category', () => {
+  categoryPage.captureCategoryNameAtRow(0);
+});
+
+When('I click the "Cancel" button in the Edit Category form', () => {
+  categoryPage.clickEditCancel();
+});
+
+Then('I should be navigated back to the Category List', () => {
+  categoryPage.verifyNavigatedBackToCategoryList();
+});
+
+Then('the category name should remain unchanged', () => {
+  categoryPage.verifyCategoryNameUnchangedAtRow(0);
+});
+
+// UI_TC_48 - Verify "Edit" button is not visible or disabled for non-admin users
+
+// Step: Given I am logged in as a Non-Admin User
+Given('I am logged in as a Non-Admin User', () => {
+  categoryPage.loginAsStandardUser();
+});
+
+Then('the "Edit" button should not be visible or should be disabled for each Category row', () => {
+  categoryPage.verifyEditButtonNotVisibleOrDisabled();
+});
+
+Given("at least one Category exists", function () {
+  categoryPage.ensureAtLeastOneCategoryExists();
+});
+
+// UI_TC_49 - Verify "Delete" button is not visible or disabled for non-admin users
+Then('the "Delete" button should not be visible or should be disabled for each Category row', () => {
+  categoryPage.elements.deleteButton().then(($btns) => {
+    if ($btns.length) {
+      cy.wrap($btns).each(($btn) => cy.wrap($btn).should('be.disabled'));
+    } else {
+      expect($btns.length).to.eq(0);
+    }
+  });
+});
+
+// UI_TC_50 - Verify that Parent Category column supports Alphabetical Sorting
+// When('I click the "Parent" column header to sort ascending', () => {
+//   categoryPage.clickParentColumnHeader();
+// });
+
+// Then('the Parent Category column should be sorted in ascending order', () => {
+//   categoryPage.verifyParentColumnSorted('asc');
+// });
+
+// When('I click the "Parent" column header to sort descending', () => {
+//   categoryPage.clickParentColumnHeader();
+// });
+
+// Then('the Parent Category column should be sorted in descending order', () => {
+//   categoryPage.verifyParentColumnSorted('desc');
+// });
