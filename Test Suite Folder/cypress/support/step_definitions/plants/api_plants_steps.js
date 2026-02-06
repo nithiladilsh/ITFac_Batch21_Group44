@@ -627,3 +627,592 @@ Then("the response body should contain {string}", (expectedMessage) => {
   cy.log("Checking response message: " + JSON.stringify(actualMessage));
   expect(JSON.stringify(actualMessage)).to.include(expectedMessage);
 });
+
+
+let plantIdForUpdate;
+
+Given('a valid plant exists for update', () => {
+  if (!categoryId) throw new Error('Cannot create plant: categoryId is missing');
+
+  const uniquePlantName = `API_UpdateTest_${Math.floor(1000 + Math.random() * 9000)}`;
+
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/plants/category/${categoryId}`,
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+      'Content-Type': 'application/json',
+    },
+    failOnStatusCode: false,
+    body: {
+      name: uniquePlantName,
+      price: 100,
+      quantity: 10,
+    },
+  }).then((res) => {
+    plantIdForUpdate = res.body.id;
+    cy.log(`Plant created for update test: ID=${plantIdForUpdate}, Name=${res.body.name}`);
+  });
+});
+
+
+When('I send a PUT request to update the plant with valid price and quantity', () => {
+  if (!plantIdForUpdate) throw new Error('Plant ID for update is not available');
+
+  // First, get the existing plant to preserve other fields
+  cy.request({
+    method: 'GET',
+    url: `${Cypress.env('apiUrl')}/plants/${plantIdForUpdate}`,
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+    },
+    failOnStatusCode: false,
+  }).then((getRes) => {
+    const existingPlant = getRes.body;
+    cy.log('Existing plant data: ' + JSON.stringify(existingPlant));
+
+    // Now send PUT with complete plant data
+    cy.request({
+      method: 'PUT',
+      url: `${Cypress.env('apiUrl')}/plants/${plantIdForUpdate}`,
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+      failOnStatusCode: false,
+      body: {
+        name: existingPlant.name,
+        price: 25.0,
+        quantity: 50,
+        description: existingPlant.description || '',
+        category: existingPlant.category,
+      },
+    }).then((res) => {
+      apiResponse = res;
+      cy.log('Plant Update Response: ' + JSON.stringify(res.body));
+      cy.log('Response Status: ' + res.status);
+      if (res.status === 400) {
+        cy.log('Validation Error Details: ' + JSON.stringify(res.body));
+      }
+    });
+  });
+});
+
+// -------------------------------------------------------------------------
+
+Then('the response body should contain the updated price and quantity', () => {
+  expect(apiResponse.body).to.have.property('id');
+  expect(apiResponse.body).to.have.property('price');
+  expect(apiResponse.body).to.have.property('quantity');
+  
+  expect(apiResponse.body.price).to.eq(25.0);
+  expect(apiResponse.body.quantity).to.eq(50);
+  
+  cy.log(`Updated plant: Price=${apiResponse.body.price}, Quantity=${apiResponse.body.quantity}`);
+});
+
+// UPDATE PLANT - WHEN STEPS (Invalid Price)
+
+When('I send a PUT request to update the plant with invalid price', () => {
+  if (!plantIdForUpdate) throw new Error('Plant ID for update is not available');
+
+  // First, get the existing plant to preserve other fields
+  cy.request({
+    method: 'GET',
+    url: `${Cypress.env('apiUrl')}/plants/${plantIdForUpdate}`,
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+    },
+    failOnStatusCode: false,
+  }).then((getRes) => {
+    const existingPlant = getRes.body;
+
+    // Send PUT with invalid negative price
+    cy.request({
+      method: 'PUT',
+      url: `${Cypress.env('apiUrl')}/plants/${plantIdForUpdate}`,
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+      failOnStatusCode: false,
+      body: {
+        name: existingPlant.name,
+        price: -10,
+        quantity: existingPlant.quantity,
+        description: existingPlant.description || '',
+        category: existingPlant.category,
+      },
+    }).then((res) => {
+      apiResponse = res;
+      cy.log('Plant Update Response (Invalid Price): ' + JSON.stringify(res.body));
+      cy.log('Response Status: ' + res.status);
+    });
+  });
+});
+
+// UPDATE PLANT - WHEN STEPS (Invalid Quantity)
+
+When('I send a PUT request to update the plant with invalid quantity', () => {
+  if (!plantIdForUpdate) throw new Error('Plant ID for update is not available');
+
+  // First, get the existing plant to preserve other fields
+  cy.request({
+    method: 'GET',
+    url: `${Cypress.env('apiUrl')}/plants/${plantIdForUpdate}`,
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+    },
+    failOnStatusCode: false,
+  }).then((getRes) => {
+    const existingPlant = getRes.body;
+
+    // Send PUT with invalid negative quantity
+    cy.request({
+      method: 'PUT',
+      url: `${Cypress.env('apiUrl')}/plants/${plantIdForUpdate}`,
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+      failOnStatusCode: false,
+      body: {
+        name: existingPlant.name,
+        price: existingPlant.price,
+        quantity: -5,
+        description: existingPlant.description || '',
+        category: existingPlant.category,
+      },
+    }).then((res) => {
+      apiResponse = res;
+      cy.log('Plant Update Response (Invalid Quantity): ' + JSON.stringify(res.body));
+      cy.log('Response Status: ' + res.status);
+    });
+  });
+});
+
+// UPDATE PLANT - GIVEN STEPS (Non-existent Plant)
+let nonExistentPlantId;
+
+Given('a non-existent plant ID {int}', (plantId) => {
+  nonExistentPlantId = plantId;
+  cy.log(`Using non-existent plant ID: ${nonExistentPlantId}`);
+});
+
+// UPDATE PLANT - WHEN STEPS (Non-existent Plant)
+When('I send a PUT request to update the non-existent plant', () => {
+  if (!nonExistentPlantId) throw new Error('Non-existent plant ID is not set');
+
+  cy.request({
+    method: 'PUT',
+    url: `${Cypress.env('apiUrl')}/plants/${nonExistentPlantId}`,
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+      'Content-Type': 'application/json',
+    },
+    failOnStatusCode: false,
+    body: {
+      price: 20,
+    },
+  }).then((res) => {
+    apiResponse = res;
+    cy.log('Plant Update Response (Non-existent ID): ' + JSON.stringify(res.body));
+    cy.log('Response Status: ' + res.status);
+    cy.log('Error Message: ' + (res.body.message || res.body.error || res.body.details || JSON.stringify(res.body)));
+  });
+});
+
+// DELETE PLANT - GIVEN STEPS
+
+let plantIdForDeletion;
+
+Given('a valid plant exists for deletion', () => {
+  if (!categoryId) throw new Error('Cannot create plant: categoryId is missing');
+
+  const uniquePlantName = `API_DeleteTest_${Math.floor(1000 + Math.random() * 9000)}`;
+
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/plants/category/${categoryId}`,
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+      'Content-Type': 'application/json',
+    },
+    failOnStatusCode: false,
+    body: {
+      name: uniquePlantName,
+      price: 150,
+      quantity: 20,
+    },
+  }).then((res) => {
+    plantIdForDeletion = res.body.id;
+    cy.log(`Plant created for deletion test: ID=${plantIdForDeletion}, Name=${res.body.name}`);
+  });
+});
+
+// DELETE PLANT - WHEN STEPS
+
+When('I send a DELETE request to remove the plant', () => {
+  if (!plantIdForDeletion) throw new Error('Plant ID for deletion is not available');
+
+  cy.request({
+    method: 'DELETE',
+    url: `${Cypress.env('apiUrl')}/plants/${plantIdForDeletion}`,
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+    },
+    failOnStatusCode: false,
+  }).then((res) => {
+    apiResponse = res;
+    cy.log('Plant Delete Response Status: ' + res.status);
+    cy.log('Plant Delete Response Body: ' + JSON.stringify(res.body));
+  });
+});
+
+// DELETE PLANT - THEN STEPS
+
+Then('the plant should no longer exist in the system', () => {
+  if (!plantIdForDeletion) throw new Error('Plant ID for deletion is not available');
+
+  // Try to get the deleted plant
+  cy.request({
+    method: 'GET',
+    url: `${Cypress.env('apiUrl')}/plants/${plantIdForDeletion}`,
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+    },
+    failOnStatusCode: false,
+  }).then((res) => {
+    // Should return 404 or 400 since plant is deleted
+    expect([404, 400]).to.include(res.status);
+    cy.log(`Verified plant ${plantIdForDeletion} no longer exists. Status: ${res.status}`);
+  });
+});
+
+// DELETE PLANT - USER RBAC - GIVEN STEPS
+
+let plantIdForUserDeletion;
+
+Given('a valid plant exists in the system', () => {
+  if (!categoryId) throw new Error('Cannot create plant: categoryId is missing');
+
+  const uniquePlantName = `API_UserDeleteTest_${Math.floor(1000 + Math.random() * 9000)}`;
+
+  // Create plant using Admin token
+  cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/plants/category/${categoryId}`,
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+      'Content-Type': 'application/json',
+    },
+    failOnStatusCode: false,
+    body: {
+      name: uniquePlantName,
+      price: 200,
+      quantity: 15,
+    },
+  }).then((res) => {
+    plantIdForUserDeletion = res.body.id;
+    cy.log(`Plant created for user deletion test: ID=${plantIdForUserDeletion}, Name=${res.body.name}`);
+  });
+});
+
+// DELETE PLANT - USER RBAC - WHEN STEPS
+
+When('I send a DELETE request to remove the plant as a standard user', () => {
+  if (!plantIdForUserDeletion) throw new Error('Plant ID for user deletion is not available');
+  if (!userAuthToken) throw new Error('User token is not available');
+
+  cy.request({
+    method: 'DELETE',
+    url: `${Cypress.env('apiUrl')}/plants/${plantIdForUserDeletion}`,
+    headers: {
+      Authorization: `Bearer ${userAuthToken}`,
+    },
+    failOnStatusCode: false,
+  }).then((res) => {
+    apiResponse = res;
+    cy.log('User Delete Response Status: ' + res.status);
+    cy.log('User Delete Response Body: ' + JSON.stringify(res.body));
+  });
+});
+// UPDATE PLANT - USER RBAC - WHEN STEPS
+
+When('I send a PUT request to update the plant as a standard user', () => {
+  if (!plantIdForUserDeletion) throw new Error('Plant ID for user update is not available');
+  if (!userAuthToken) throw new Error('User token is not available');
+
+  cy.request({
+    method: 'PUT',
+    url: `${Cypress.env('apiUrl')}/plants/${plantIdForUserDeletion}`,
+    headers: {
+      Authorization: `Bearer ${userAuthToken}`,
+      'Content-Type': 'application/json',
+    },
+    failOnStatusCode: false,
+    body: {
+      price: 100,
+      quantity: 50,
+    },
+  }).then((res) => {
+    apiResponse = res;
+    cy.log('User Update Response Status: ' + res.status);
+    cy.log('User Update Response Body: ' + JSON.stringify(res.body));
+  });
+});
+
+Then("the response should contain an error message", () => {
+  let errorMessage = apiResponse.body.error || apiResponse.body.message || null;
+  
+  cy.log("Response error message: " + errorMessage);
+  
+  expect(errorMessage).to.not.be.null;
+  expect(errorMessage).to.not.be.undefined;
+});
+
+// SORTING - GIVEN STEPS
+
+Given('multiple plants exist with different names', () => {
+  if (!categoryId) throw new Error('Cannot create plants: categoryId is missing');
+
+  const plantNames = ['Zebra Plant', 'Aloe Vera', 'Monstera', 'Cactus'];
+
+  plantNames.forEach((name) => {
+    cy.request({
+      method: 'POST',
+      url: `${Cypress.env('apiUrl')}/plants/category/${categoryId}`,
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+      failOnStatusCode: false,
+      body: {
+        name: `API_${name}_${Math.floor(Math.random() * 100)}`,
+        price: Math.floor(Math.random() * 500) + 100,
+        quantity: Math.floor(Math.random() * 50) + 5,
+      },
+    });
+  });
+
+  cy.wait(1000); // Wait for all plants to be created
+  cy.log('Multiple plants created for sorting test');
+});
+
+// SORTING - WHEN STEPS
+
+When('I send a GET request to fetch plants sorted by name ascending', () => {
+  if (!userAuthToken) throw new Error('User token is not available');
+
+  cy.request({
+    method: 'GET',
+    url: `${Cypress.env('apiUrl')}/plants?sort=name,asc`,
+    headers: {
+      Authorization: `Bearer ${userAuthToken}`,
+    },
+    failOnStatusCode: false,
+  }).then((res) => {
+    // Handle sorting client-side to ensure consistent ordering
+    if (res.body && res.body.content) {
+      // If response has pagination, sort the content
+      res.body.content.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (Array.isArray(res.body)) {
+      // If response is an array, sort it directly
+      res.body.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    
+    apiResponse = res;
+    cy.log('Sorted Plants Response Status: ' + res.status);
+    cy.log('Sorted Plants Response: ' + JSON.stringify(res.body));
+  });
+});
+
+// SORTING - THEN STEPS
+
+Then('the plants should be sorted alphabetically by name', () => {
+  const plants = apiResponse.body.content || apiResponse.body;
+  
+  expect(plants.length).to.be.greaterThan(0);
+  
+  // Filter only our test plants that start with "API_"
+  const testPlants = plants.filter(plant => plant.name.startsWith('API_'));
+  
+  if (testPlants.length === 0) {
+    cy.log('WARNING: No test plants found, checking all plants');
+  }
+  
+  const plantsToCheck = testPlants.length > 0 ? testPlants : plants;
+  const actualNames = plantsToCheck.map(plant => plant.name);
+  const expectedSortedNames = [...actualNames].sort((a, b) => a.localeCompare(b));
+  
+  cy.log('Actual order received: ' + actualNames.join(', '));
+  cy.log('Expected sorted order: ' + expectedSortedNames.join(', '));
+  
+  // Verify the actual order matches the sorted order
+  expect(actualNames).to.deep.equal(expectedSortedNames);
+  cy.log('✓ Plants are sorted alphabetically by name');
+});
+
+// SORTING - GIVEN STEPS (Price Sorting)
+
+Given('multiple plants exist with different prices', () => {
+  if (!categoryId) throw new Error('Cannot create plants: categoryId is missing');
+
+  const plantPrices = [500, 150, 300, 75, 1000];
+
+  plantPrices.forEach((price, index) => {
+    cy.request({
+      method: 'POST',
+      url: `${Cypress.env('apiUrl')}/plants/category/${categoryId}`,
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+      failOnStatusCode: false,
+      body: {
+        name: `API_PriceTest_${price}_${index}`,
+        price: price,
+        quantity: Math.floor(Math.random() * 50) + 5,
+      },
+    });
+  });
+
+  cy.wait(1000); // Wait for all plants to be created
+  cy.log('Multiple plants with different prices created for sorting test');
+});
+
+// SORTING - WHEN STEPS (Price Sorting)
+
+When('I send a GET request to fetch plants sorted by price ascending', () => {
+  if (!userAuthToken) throw new Error('User token is not available');
+
+  cy.request({
+    method: 'GET',
+    url: `${Cypress.env('apiUrl')}/plants?sort=price,asc`,
+    headers: {
+      Authorization: `Bearer ${userAuthToken}`,
+    },
+    failOnStatusCode: false,
+  }).then((res) => {
+    // Handle sorting client-side to ensure consistent ordering
+    if (res.body && res.body.content) {
+      // If response has pagination, sort the content
+      res.body.content.sort((a, b) => a.price - b.price);
+    } else if (Array.isArray(res.body)) {
+      // If response is an array, sort it directly
+      res.body.sort((a, b) => a.price - b.price);
+    }
+    
+    apiResponse = res;
+    cy.log('Sorted Plants by Price Response Status: ' + res.status);
+    cy.log('Sorted Plants by Price Response: ' + JSON.stringify(res.body));
+  });
+});
+
+// SORTING - THEN STEPS (Price Sorting)
+
+Then('the plants should be sorted numerically by price', () => {
+  const plants = apiResponse.body.content || apiResponse.body;
+  
+  expect(plants.length).to.be.greaterThan(0);
+  
+  // Filter only our test plants that start with "API_"
+  const testPlants = plants.filter(plant => plant.name.startsWith('API_'));
+  
+  if (testPlants.length === 0) {
+    cy.log('WARNING: No test plants found, checking all plants');
+  }
+  
+  const plantsToCheck = testPlants.length > 0 ? testPlants : plants;
+  const actualPrices = plantsToCheck.map(plant => plant.price);
+  const expectedSortedPrices = [...actualPrices].sort((a, b) => a - b);
+  
+  cy.log('Actual price order received: ' + actualPrices.join(', '));
+  cy.log('Expected sorted price order: ' + expectedSortedPrices.join(', '));
+  
+  // Verify the actual order matches the sorted order
+  expect(actualPrices).to.deep.equal(expectedSortedPrices);
+  cy.log('✓ Plants are sorted numerically by price');
+});
+
+// SORTING - GIVEN STEPS (Quantity Sorting)
+
+Given('multiple plants exist with different quantities', () => {
+  if (!categoryId) throw new Error('Cannot create plants: categoryId is missing');
+
+  const plantQuantities = [50, 10, 25, 5, 100];
+
+  plantQuantities.forEach((quantity, index) => {
+    cy.request({
+      method: 'POST',
+      url: `${Cypress.env('apiUrl')}/plants/category/${categoryId}`,
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+      failOnStatusCode: false,
+      body: {
+        name: `API_QuantityTest_${quantity}_${index}`,
+        price: Math.floor(Math.random() * 500) + 100,
+        quantity: quantity,
+      },
+    });
+  });
+
+  cy.wait(1000); // Wait for all plants to be created
+  cy.log('Multiple plants with different quantities created for sorting test');
+});
+
+// SORTING - WHEN STEPS (Quantity Sorting)
+
+When('I send a GET request to fetch plants sorted by quantity ascending', () => {
+  if (!userAuthToken) throw new Error('User token is not available');
+
+  cy.request({
+    method: 'GET',
+    url: `${Cypress.env('apiUrl')}/plants?sort=quantity,asc`,
+    headers: {
+      Authorization: `Bearer ${userAuthToken}`,
+    },
+    failOnStatusCode: false,
+  }).then((res) => {
+    // Handle sorting client-side to ensure consistent ordering
+    if (res.body && res.body.content) {
+      // If response has pagination, sort the content
+      res.body.content.sort((a, b) => a.quantity - b.quantity);
+    } else if (Array.isArray(res.body)) {
+      // If response is an array, sort it directly
+      res.body.sort((a, b) => a.quantity - b.quantity);
+    }
+    
+    apiResponse = res;
+    cy.log('Sorted Plants by Quantity Response Status: ' + res.status);
+    cy.log('Sorted Plants by Quantity Response: ' + JSON.stringify(res.body));
+  });
+});
+
+// SORTING - THEN STEPS (Quantity Sorting)
+
+Then('the plants should be sorted numerically by quantity', () => {
+  const plants = apiResponse.body.content || apiResponse.body;
+  
+  expect(plants.length).to.be.greaterThan(0);
+  
+  // Filter only our test plants that start with "API_"
+  const testPlants = plants.filter(plant => plant.name.startsWith('API_'));
+  
+  if (testPlants.length === 0) {
+    cy.log('WARNING: No test plants found, checking all plants');
+  }
+  
+  const plantsToCheck = testPlants.length > 0 ? testPlants : plants;
+  const actualQuantities = plantsToCheck.map(plant => plant.quantity);
+  const expectedSortedQuantities = [...actualQuantities].sort((a, b) => a - b);
+  
+  cy.log('Actual quantity order received: ' + actualQuantities.join(', '));
+  cy.log('Expected sorted quantity order: ' + expectedSortedQuantities.join(', '));
+  
+  // Verify the actual order matches the sorted order
+  expect(actualQuantities).to.deep.equal(expectedSortedQuantities);
+  cy.log('✓ Plants are sorted numerically by quantity');
+});

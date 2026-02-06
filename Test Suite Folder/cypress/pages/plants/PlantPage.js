@@ -352,7 +352,6 @@ verifyPlantQuantity(plantName, expectedQuantity) {
       });
     });
 }
-//---------------------------------------
 
 // Add these methods to the PlantPage class
 
@@ -449,10 +448,7 @@ verifyQuantityValidationError() {
     .find('.text-danger, .invalid-feedback, .error-message', { timeout: 5000 })
     .should('be.visible');
 }
-// -------------------------------------------------------------------------
 // SORTING METHODS
-// -------------------------------------------------------------------------
-
 clickColumnHeaderForAscending(columnName) {
     const columnMap = {
         'Name': 'name',
@@ -494,6 +490,27 @@ getPlantQuantities() {
     return cy.get('tbody tr td:nth-child(4) span:first-child').then(($cells) => {
         return $cells.map((i, el) => parseInt(Cypress.$(el).text().trim())).get();
     });
+}
+// RBAC METHODS
+verifyEditButtonNotVisible() {
+    cy.get('tbody tr td:last-child').each(($actionCell) => {
+        cy.wrap($actionCell).should('not.contain', 'Edit');
+    });
+    cy.get('tbody tr button:contains("Edit")').should('not.exist');
+    cy.get('tbody tr a:contains("Edit")').should('not.exist');
+}
+
+verifyDeleteButtonNotVisible() {
+    cy.get('tbody tr td:last-child').each(($actionCell) => {
+        cy.wrap($actionCell).should('not.contain', 'Delete');
+    });
+    cy.get('tbody tr button:contains("Delete")').should('not.exist');
+    cy.get('tbody tr a:contains("Delete")').should('not.exist');
+}
+
+checkActionColumn() {
+    cy.get('tbody tr').should('exist');
+    cy.get('tbody tr td:last-child').should('exist');
 }
 }
 

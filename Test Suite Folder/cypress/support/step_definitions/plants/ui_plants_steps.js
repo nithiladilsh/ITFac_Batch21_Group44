@@ -655,17 +655,12 @@ Then("previously entered form data should be discarded", () => {
   plantPage.elements.quantityInput().should("have.value", "");
   plantPage.elements.categoryDropdown().should("have.value", "");
 });
-// -------------------------------------------------------------------------
+
 // SORTING - GIVEN STEPS
-// -------------------------------------------------------------------------
 
 Given('plants exist with names in the list', function() {
     cy.get('tbody tr').should('have.length.greaterThan', 0);
 });
-
-// -------------------------------------------------------------------------
-// SORTING - WHEN STEPS
-// -------------------------------------------------------------------------
 
 When('I click on the {string} column header to sort ascending', function(columnName) {
     const columnMap = {
@@ -695,10 +690,6 @@ When('I click on the {string} column header to sort ascending', function(columnN
     cy.wait(500);
 });
 
-// -------------------------------------------------------------------------
-// SORTING - THEN STEPS
-// -------------------------------------------------------------------------
-
 Then('the plant list should be sorted by name in ascending order', function() {
     cy.get('tbody tr td:first-child').then(($cells) => {
         const plantNames = $cells.map((i, el) => Cypress.$(el).text().trim()).get();
@@ -726,17 +717,11 @@ Then('the plants should be ordered alphabetically from A to Z', function() {
     });
 });
 
-// -------------------------------------------------------------------------
 // NEW GIVEN STEP FOR PRICE
-// -------------------------------------------------------------------------
 
 Given('plants exist with different prices', function() {
     cy.get('tbody tr td:nth-child(3)').should('have.length.greaterThan', 1);
 });
-
-// -------------------------------------------------------------------------
-// NEW THEN STEPS FOR PRICE
-// -------------------------------------------------------------------------
 
 Then('the plant list should be sorted by price in ascending order', function() {
     cy.get('tbody tr td:nth-child(3)').then(($cells) => {
@@ -765,17 +750,13 @@ Then('the plants should be ordered from low to high price', function() {
     });
 });
 
-// -------------------------------------------------------------------------
+
 // NEW GIVEN STEP FOR QUANTITY
-// -------------------------------------------------------------------------
+
 
 Given('plants exist with different stock quantities', function() {
     cy.get('tbody tr td:nth-child(4) span:first-child').should('have.length.greaterThan', 1);
 });
-
-// -------------------------------------------------------------------------
-// NEW THEN STEPS FOR QUANTITY
-// -------------------------------------------------------------------------
 
 Then('the plant list should be sorted by quantity in ascending order', function() {
     cy.get('tbody tr td:nth-child(4) span:first-child').then(($cells) => {
@@ -802,4 +783,22 @@ Then('the plants should be ordered from low to high stock quantity', function() 
             expect(current, `Quantity ${current} should be <= ${next}`).to.be.at.most(next);
         }
     });
+});
+
+// RBAC - WHEN STEPS
+
+When('I check the plant rows for action buttons', function() {
+    cy.get('tbody tr').should('exist');
+    cy.get('tbody tr').first().should('be.visible');
+});
+
+Then('the {string} button should not be visible', function(buttonName) {
+    // Check that Edit or Delete buttons don't exist in the Actions column
+    cy.get('tbody tr td:last-child').each(($actionCell) => {
+        cy.wrap($actionCell).should('not.contain', buttonName);
+    });
+    
+    // Also verify no buttons with specific text exist
+    cy.get('tbody tr').find(`button:contains("${buttonName}")`).should('not.exist');
+    cy.get('tbody tr').find(`a:contains("${buttonName}")`).should('not.exist');
 });
