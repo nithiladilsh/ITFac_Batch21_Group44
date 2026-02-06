@@ -21,10 +21,10 @@ Feature: Sales Functionality - Admin Scenarios
         And I have selected a plant from the dropdown
         When I enter "0" in the Quantity field
         And I attempt to submit the form
-        Then a validation error message should be displayed
+        Then the validation error message "Quantity must be greater than 0" should be displayed
         When I enter "-1" in the Quantity field
         And I attempt to submit the form
-        Then a validation error message should be displayed
+        Then the validation error message "Quantity must be greater than 0" should be displayed
 
     Scenario: UI TC 22 - Verify that an Admin can successfully complete a plant sale
         Given I am on the "Sell Plant" page

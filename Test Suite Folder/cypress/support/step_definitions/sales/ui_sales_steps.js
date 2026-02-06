@@ -74,7 +74,6 @@ const makeAuthRequest = (method, endpoint, body = null) => {
 // Get first available plant for creating sales (with retry logic for 500 errors)
 const getFirstPlant = (retryCount = 0) => {
     return makeAuthRequest("GET", "/plants?page=0&size=10").then((plantsRes) => {
-
         if (plantsRes.status === 500 && retryCount < 2) {
             return cy
                 .log(`Plants API returned 500, retrying... (attempt ${retryCount + 1}/2)`)
@@ -83,25 +82,20 @@ const getFirstPlant = (retryCount = 0) => {
                 });
         }
 
-
         if (plantsRes.status === 500) {
             return cy.log("Plants API still failing after retries").then(() => null);
         }
 
-
         let plants = null;
         if (plantsRes.body) {
             if (Array.isArray(plantsRes.body)) {
-
                 plants = plantsRes.body;
             } else if (plantsRes.body.content && Array.isArray(plantsRes.body.content)) {
-
                 plants = plantsRes.body.content;
             }
         }
 
         if (plants && plants.length > 0) {
-
             const plantWithStock = plants.find((p) => p.quantity > 0);
             if (plantWithStock) {
                 return cy
@@ -129,7 +123,6 @@ const cleanUpSalesTestData = () => {
     }
 
     return cy.log(`Deleting ${testSaleIds.length} test sales by ID...`).then(() => {
-
         return cy
             .wrap(testSaleIds)
             .each((saleId) => {
@@ -159,18 +152,15 @@ Before({ tags: "not @cleanup_all" }, () => {
 
 // 2. Clean-then-Seed for @requires_sales_records (consolidated to prevent race conditions)
 Before({ tags: "@requires_sales_records" }, () => {
-    cy.log("🔄 Clean-then-Seed for @requires_sales_records...");
-
+    cy.log("Clean-then-Seed for @requires_sales_records...");
 
     return cleanUpSalesTestData().then(() => {
-        cy.log("🌱 Seeding test sales records with stock-aware quantities...");
-
+        cy.log("Seeding test sales records with stock-aware quantities...");
 
         return getFirstPlant().then((plant) => {
             if (!plant) {
                 throw new Error("No plant with available stock to create test sales");
             }
-
 
             const safeQty1 = Math.min(2, Math.floor(plant.quantity / 2));
             const safeQty2 = Math.min(1, Math.floor(plant.quantity / 2));
@@ -180,7 +170,6 @@ Before({ tags: "@requires_sales_records" }, () => {
                     `Plant ${plant.name} has insufficient stock (${plant.quantity}) for test sales`,
                 );
             }
-
 
             return createSalesRecord(plant.id, safeQty1).then((res1) => {
                 if (res1.status !== 201 && res1.status !== 200) {
@@ -231,7 +220,7 @@ Given("I am on the Dashboard page", () => {
 });
 
 Given("at least one sales record exists in the list", () => {
-    cy.log("⏳ Waiting for sales table to contain records...");
+    cy.log("Waiting for sales table to contain records...");
 
     salesPage.elements.salesTable().should("be.visible");
     salesPage.elements.salesRecords().should("have.length.at.least", 1);
@@ -302,6 +291,44 @@ Then("the dropdown should display a list of available plants", () => {
 
 Then("each plant entry should display its stock quantity", () => {
     sellPlantPage.verifyPlantHasStockInfo();
+});
+
+Then("the validation error message {string} should be displayed", (expectedMessage) => {
+    cy.log(`🔍 Verifying validation error message: "${expectedMessage}"`);
+
+    // Check for error message in common locations
+    cy.get("body").then(($body) => {
+        const errorSelectors = [
+            ".invalid-feedback",
+            ".error-message",
+            ".alert-danger",
+            '[class*="error"]',
+            '[role="alert"]',
+        ];
+
+        let errorFound = false;
+        let actualMessage = "";
+
+        errorSelectors.forEach((selector) => {
+            if ($body.find(selector).length > 0 && $body.find(selector).is(":visible")) {
+                actualMessage = $body.find(selector).first().text().trim();
+                errorFound = true;
+            }
+        });
+
+        if (errorFound) {
+            cy.log(`❌ Expected: "${expectedMessage}"`);
+            cy.log(`❌ Actual: "${actualMessage}"`);
+
+            // This will FAIL the test if messages don't match
+            expect(actualMessage).to.include(
+                expectedMessage,
+                `Validation message mismatch!\nExpected (SRS): "${expectedMessage}"\nActual (UI): "${actualMessage}"`,
+            );
+        } else {
+            throw new Error("No validation error message found on the page");
+        }
+    });
 });
 
 Given("I have selected a plant from the dropdown", () => {

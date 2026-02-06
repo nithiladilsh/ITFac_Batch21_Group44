@@ -77,7 +77,7 @@ Given("a User Auth Token is available", () => {
 
 // ADMIN TEST STEPS
 
-// API_TC_01 - Verify that the API rejects selling quantity greater than available stock
+// API_TC_13 - Verify that the API rejects selling quantity greater than available stock
 When("I send a POST request to sell a plant with quantity exceeding stock", () => {
     cy.request({
         method: "GET",
@@ -181,45 +181,64 @@ When("I send a POST request to sell a plant with string quantity {string}", (str
     });
 });
 
-// API_TC_15 - Verify that the API rejects requests with missing quantity parameter
-When("I send a POST request to sell a plant without quantity parameter", () => {
-    cy.request({
-        method: "GET",
-        url: `${Cypress.env("apiUrl")}/plants`,
-        headers: {
-            Authorization: `Bearer ${authToken}`,
-        },
-    }).then((plantsRes) => {
-        expect(plantsRes.status).to.eq(200);
-
-        let plants = null;
-        if (Array.isArray(plantsRes.body)) {
-            plants = plantsRes.body;
-        } else if (plantsRes.body.content && Array.isArray(plantsRes.body.content)) {
-            plants = plantsRes.body.content;
-        }
-
-        expect(plants).to.not.be.null;
-        expect(plants.length).to.be.greaterThan(0);
-
-        const testPlant = plants[0];
-
-        cy.log(`Plant ID: ${testPlant.id}, Attempting to sell without quantity parameter`);
-
+// API_TC_15 - Verify that the API rejects requests with missing mandatory parameters
+When(
+    "I send a POST request with plantId {string} and quantity {string}",
+    (plantIdType, quantityType) => {
         cy.request({
-            method: "POST",
-            url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}`,
-            failOnStatusCode: false,
+            method: "GET",
+            url: `${Cypress.env("apiUrl")}/plants`,
             headers: {
                 Authorization: `Bearer ${authToken}`,
-                "Content-Type": "application/json",
             },
-        }).then((res) => {
-            apiResponse = res;
-            cy.log("API Response (Missing Quantity): " + JSON.stringify(res.body));
+        }).then((plantsRes) => {
+            expect(plantsRes.status).to.eq(200);
+
+            let plants = null;
+            if (Array.isArray(plantsRes.body)) {
+                plants = plantsRes.body;
+            } else if (plantsRes.body.content && Array.isArray(plantsRes.body.content)) {
+                plants = plantsRes.body.content;
+            }
+
+            expect(plants).to.not.be.null;
+            expect(plants.length).to.be.greaterThan(0);
+
+            const testPlant = plants[0];
+
+            // Build URL based on parameter types
+            let url = `${Cypress.env("apiUrl")}/sales/plant/`;
+
+            if (plantIdType === "valid") {
+                url += testPlant.id;
+            } else if (plantIdType === "null") {
+                url += "null";
+            }
+            // else plantIdType === "missing", leave empty
+
+            if (quantityType === "valid") {
+                url += "?quantity=5";
+            }
+            // else quantityType === "missing", don't add parameter
+
+            cy.log(`Testing: PlantId=${plantIdType}, Quantity=${quantityType}`);
+            cy.log(`URL: ${url}`);
+
+            cy.request({
+                method: "POST",
+                url: url,
+                failOnStatusCode: false,
+                headers: {
+                    Authorization: `Bearer ${authToken}`,
+                    "Content-Type": "application/json",
+                },
+            }).then((res) => {
+                apiResponse = res;
+                cy.log(`Response: ${res.status} - ${JSON.stringify(res.body)}`);
+            });
         });
-    });
-});
+    },
+);
 
 // API_TC_16 - Verify that the API rejects floating-point values for quantity parameter
 When("I send a POST request to sell a plant with float quantity {string}", (floatQuantity) => {
@@ -382,13 +401,15 @@ When("I send a DELETE request for an existing sales record as a User", () => {
             } else if (plantsRes.body.content && Array.isArray(plantsRes.body.content)) {
                 plants = plantsRes.body.content;
             }
-            const testPlant = plants.find(p => p.quantity > 0);
+            const testPlant = plants.find((p) => p.quantity > 0);
 
             if (!testPlant) {
-                throw new Error("Test Failed: No plants found with available stock. Cannot create a sale to test deletion.");
+                throw new Error(
+                    "Test Failed: No plants found with available stock. Cannot create a sale to test deletion.",
+                );
             }
 
-            const validQuantity = 1; 
+            const validQuantity = 1;
             cy.request({
                 method: "POST",
                 url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=${validQuantity}`,
@@ -399,13 +420,15 @@ When("I send a DELETE request for an existing sales record as a User", () => {
                 const saleId = createRes.body.id;
                 testSaleIds.push(saleId);
 
-                cy.log(`Created sale ID ${saleId} for Plant ${testPlant.id}. Now User will attempt to delete it.`);
+                cy.log(
+                    `Created sale ID ${saleId} for Plant ${testPlant.id}. Now User will attempt to delete it.`,
+                );
                 cy.request({
                     method: "DELETE",
                     url: `${Cypress.env("apiUrl")}/sales/${saleId}`,
                     failOnStatusCode: false,
                     headers: {
-                        Authorization: `Bearer ${authToken}`, 
+                        Authorization: `Bearer ${authToken}`,
                         "Content-Type": "application/json",
                     },
                 }).then((res) => {

@@ -14,10 +14,17 @@ Feature: Sales API - Admin Scenarios
         Then the sales response status should be 400
         And the response body should confirm "Failed to convert" or "type mismatch"
 
-    Scenario: API TC 15 - Verify response when mandatory fields are not provided in "Sell Plant"
-        When I send a POST request to sell a plant without quantity parameter
-        Then the sales response status should be 400
-        And the response body should confirm "quantity" or "Required parameter"
+    Scenario Outline: API TC 15 - Verify response when mandatory fields are not provided in "Sell Plant"
+        When I send a POST request with plantId "<plantId>" and quantity "<quantity>"
+        Then the sales response status should be <status>
+        And the response body should confirm "<error1>" or "<error2>"
+
+        Examples:
+            | plantId | quantity | status | error1                     | error2           |
+            | valid   | missing  | 400    | Required request parameter | quantity         |
+            | missing | valid    | 404    | Not Found                  | No endpoint      |
+            | missing | missing  | 404    | Not Found                  | No endpoint      |
+            | null    | valid    | 400    | Failed to convert          | For input string |
 
     Scenario: API TC 16 - Verify quantity data type enforcement (Float vs Integer)
         When I send a POST request to sell a plant with float quantity "2.5"
