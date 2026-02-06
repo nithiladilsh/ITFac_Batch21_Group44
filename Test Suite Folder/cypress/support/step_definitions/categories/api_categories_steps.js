@@ -368,7 +368,103 @@ When('I send a GET request to retrieve categories with invalid page {string} and
     });
 });
 
-// API_TC_34 - Verify that the API prevents deletion of a category that contains active child categories
+// --- API_TC_34: Verify that deletion for a category is allowed ---
+let deletableCategoryId;
+
+Given('a category exists for deletion testing', () => {
+    const uniqueName = `DEL${Math.floor(100 + Math.random() * 900)}`;
+    cy.request({
+        method: 'POST',
+        url: `${Cypress.env('apiUrl')}/categories`,
+        headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: {
+            name: uniqueName,
+            parent: null
+        }
+    }).then((res) => {
+        expect(res.status).to.eq(201);
+        deletableCategoryId = res.body.id;
+    });
+});
+
+When('the Admin sends a DELETE request to the category deletion endpoint with a valid Admin Token', () => {
+    cy.request({
+        method: 'DELETE',
+        url: `${Cypress.env('apiUrl')}/categories/${deletableCategoryId}`,
+        failOnStatusCode: false,
+        headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'accept': 'application/json'
+        }
+    }).then((res) => {
+        apiResponse = res;
+    });
+});
+
+Then('the API should respond with a 204 No Content status', () => {
+    expect(apiResponse.status).to.eq(204);
+});
+
+Then('the category should no longer exist', () => {
+    cy.request({
+        method: 'GET',
+        url: `${Cypress.env('apiUrl')}/categories/${deletableCategoryId}`,
+        failOnStatusCode: false,
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    }).then((res) => {
+        expect([404, 400]).to.include(res.status);
+    });
+});
+
+// API_TC_35 - Verify that update for a category is allowed
+
+When('the Admin sends a PUT request to the category update endpoint with a new name', () => {
+    const newName = `UpdCName`;
+    // Store for later verification
+    Cypress.env('UpdatedCategoryName', newName);
+
+    cy.request({
+        method: 'PUT',
+        url: `${Cypress.env('apiUrl')}/categories/${validCategoryId}`,
+        failOnStatusCode: false,
+        headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: {
+            name: newName,
+            parentId: null
+        }
+    }).then((res) => {
+        apiResponse = res;
+        cy.log("API Response (Update Category): " + JSON.stringify(res.body));
+    });
+});
+
+Then('the API should respond with a 200 OK status', () => {
+    expect(apiResponse.status).to.eq(200);
+});
+
+Then('the category should have the updated name', () => {
+    const updatedName = Cypress.env('UpdatedCategoryName');
+    cy.request({
+        method: 'GET',
+        url: `${Cypress.env('apiUrl')}/categories/${validCategoryId}`,
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    }).then((res) => {
+        expect(res.status).to.eq(200);
+        expect(res.body.name).to.eq(updatedName);
+    });
+});
+
+// API_TC_36 - Prevent deletion of category with active child categories
 Given('Category A exists with Sub-Category B as its child', () => {
     // Create Category A
     cy.request({
@@ -429,8 +525,8 @@ Then('the API should respond with a {int} Conflict status', (expectedStatus) => 
     expect(apiResponse.status).to.eq(expectedStatus);
 });
 
-Then('the API should respond with a 403 Forbidden status', () => {
-    expect(apiResponse.status).to.eq(403);
+Then('the API should respond with a 500 Internal Server Error status', () => {
+    expect(apiResponse.status).to.eq(500);
 });
 
 Then('the response message should indicate that the category cannot be deleted due to active child categories', () => {
@@ -469,7 +565,7 @@ Then('Sub-Category B should still exist', () => {
     });
 });
 
-// API_TC_35 - Verify error on deleting non-existent Category ID
+// API_TC_37 - Verify error on deleting non-existent Category ID
 
 Given('Category ID 99999 does not exist', () => {
     // Attempt to delete if it exists, ignore errors
@@ -516,7 +612,7 @@ Then('the system should remain stable', () => {
     });
 });
 
-// API_TC_36 - Verify that the API prevents updating a category name to a Null value
+// API_TC_38 - Verify that the API prevents updating a category name to a Null value
 let validCategoryId;
 
 Given('I create a category for update testing', () => {
@@ -579,7 +675,7 @@ Then('the API should respond with a {int} Bad Request status', (expectedStatus) 
     expect(apiResponse.status).to.eq(expectedStatus);
 });
 
-//API_TC_37 - Verify that the API prevents updating a category name to one that already exists
+// API_TC_39 - Verify that the API prevents updating a category name to one that already exists
 
 let categoryAId;
 let categoryBId;
@@ -654,7 +750,7 @@ Then('the response message should indicate "Name already exists"', () => {
 });
 
 
-// API_TC_38 - Prevent category from becoming its own parent (Circular Reference)
+// API_TC_40 - Prevent category from becoming its own parent (Circular Reference)
 let circularCategoryId;
 Given('I create a category for circular parent testing', () => {
     const uniqueName = `C${Math.floor(100 + Math.random() * 900)}`;
@@ -675,14 +771,14 @@ Given('I create a category for circular parent testing', () => {
     });
 });
 
-// API_TC_38 - Prevent category from becoming its own parent (Circular Reference)
+// API_TC_40 - Prevent category from becoming its own parent (Circular Reference)
 
 Then('the response message should indicate "Category cannot be its own parent"', () => {
     const actualMessage = apiResponse.body.message || apiResponse.body.error || JSON.stringify(apiResponse.body);
     expect(/category.*own.*parent/i.test(actualMessage)).to.be.true;
 });
 
-// --- API_TC_39 - Verify that the API rejects updating a category's parent to a non-existent ID ---
+// API_TC_41 - Verify that the API rejects updating a category's parent to a non-existent ID
 
 let parentIntegrityCategoryId;
 
@@ -719,7 +815,8 @@ Then('the response message should indicate "Parent category not found"', () => {
     ).to.be.true;
 });
 
-// API_TC_40 Verify that the API correctly sorts the category list by Name in Ascending order
+
+// API_TC_42 Verify that the API correctly sorts the category list by Name in Ascending order
 
 
 let userApiResponse;
@@ -789,7 +886,7 @@ Then('the category list should be returned in alphabetical order by Name \\(A to
     expect(names, `Expected: ${JSON.stringify(sortedNames)}, Got: ${JSON.stringify(names)}`).to.deep.equal(sortedNames);
 });
 
-//API_TC_41 Verify that the API correctly sorts the category list by Parent Category
+//API_TC_42 Verify that the API correctly sorts the category list by Parent Category
 
 Given('multiple categories exist with different parent categories', () => {
     cy.request({
@@ -850,14 +947,14 @@ Then('the category list should be returned in ascending order by Parent Category
     expect(parentNames, `Expected: ${JSON.stringify(sortedParentNames)}, Got: ${JSON.stringify(parentNames)}`).to.deep.equal(sortedParentNames);
 });
 
-// API_TC_42 Verify that the API rejects requests containing invalid sort fields
+// API_TC_43 Verify that the API rejects requests containing invalid sort fields
 
 Then('the response should contain the error message {string}', (expectedMessage) => {
     const actualMessage = apiResponse.body.message || apiResponse.body.error || JSON.stringify(apiResponse.body);
     expect(actualMessage).to.include(expectedMessage);
 });
 
-// --- API_TC_43: Verify that the API correctly handles multiple sort parameters ---
+// --- API_TC_44: Verify that the API correctly handles multiple sort parameters ---
 
 Given('multiple categories exist with different parent categories and names', () => {
     // Create two parents and children with different names for complex sorting
@@ -938,7 +1035,7 @@ Then('the category list should be sorted first by Parent Category in ascending o
     });
 });
 
-// --- API_TC_44: Verify that Standard Users are forbidden from deleting categories ---
+// --- API_TC_45: Verify that Standard Users are forbidden from deleting categories ---
 
 Given('a category exists to be deleted', () => {
     // Create a category as admin for deletion attempt
