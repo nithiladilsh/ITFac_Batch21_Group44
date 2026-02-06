@@ -17,7 +17,6 @@ const cleanUpApiSalesData = () => {
         if (!loginRes.body.token) return;
         const cleanupToken = loginRes.body.token;
 
-        // Delete test sales by ID
         if (testSaleIds.length > 0) {
             cy.log(`Cleaning up ${testSaleIds.length} test sales...`);
             testSaleIds.forEach((saleId) => {
@@ -80,7 +79,6 @@ Given("a User Auth Token is available", () => {
 
 // API_TC_01 - Verify that the API rejects selling quantity greater than available stock
 When("I send a POST request to sell a plant with quantity exceeding stock", () => {
-    // Step 1: Get a plant with known stock
     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/plants`,
@@ -90,7 +88,6 @@ When("I send a POST request to sell a plant with quantity exceeding stock", () =
     }).then((plantsRes) => {
         expect(plantsRes.status).to.eq(200);
 
-        // Get plants array (handle both direct array and paginated response)
         let plants = null;
         if (Array.isArray(plantsRes.body)) {
             plants = plantsRes.body;
@@ -103,13 +100,12 @@ When("I send a POST request to sell a plant with quantity exceeding stock", () =
 
         const testPlant = plants[0];
         const availableStock = testPlant.quantity;
-        const excessiveQuantity = availableStock + 10; // Exceed stock by 10
+        const excessiveQuantity = availableStock + 10;
 
         cy.log(
             `Plant ID: ${testPlant.id}, Available Stock: ${availableStock}, Attempting to sell: ${excessiveQuantity}`,
         );
 
-        // Step 2: Try to sell quantity greater than available stock
         cy.request({
             method: "POST",
             url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=${excessiveQuantity}`,
@@ -145,7 +141,6 @@ Then("the response body should confirm {string} or {string}", (errorMessage1, er
 
 // API_TC_14 - Verify that the API rejects string values for quantity parameter
 When("I send a POST request to sell a plant with string quantity {string}", (stringQuantity) => {
-    // Step 1: Get a plant
     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/plants`,
@@ -155,7 +150,6 @@ When("I send a POST request to sell a plant with string quantity {string}", (str
     }).then((plantsRes) => {
         expect(plantsRes.status).to.eq(200);
 
-        // Get plants array (handle both direct array and paginated response)
         let plants = null;
         if (Array.isArray(plantsRes.body)) {
             plants = plantsRes.body;
@@ -172,7 +166,6 @@ When("I send a POST request to sell a plant with string quantity {string}", (str
             `Plant ID: ${testPlant.id}, Attempting to sell with string quantity: "${stringQuantity}"`,
         );
 
-        // Step 2: Try to sell with string quantity
         cy.request({
             method: "POST",
             url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=${stringQuantity}`,
@@ -190,7 +183,6 @@ When("I send a POST request to sell a plant with string quantity {string}", (str
 
 // API_TC_15 - Verify that the API rejects requests with missing quantity parameter
 When("I send a POST request to sell a plant without quantity parameter", () => {
-    // Step 1: Get a plant
     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/plants`,
@@ -200,7 +192,6 @@ When("I send a POST request to sell a plant without quantity parameter", () => {
     }).then((plantsRes) => {
         expect(plantsRes.status).to.eq(200);
 
-        // Get plants array (handle both direct array and paginated response)
         let plants = null;
         if (Array.isArray(plantsRes.body)) {
             plants = plantsRes.body;
@@ -215,7 +206,6 @@ When("I send a POST request to sell a plant without quantity parameter", () => {
 
         cy.log(`Plant ID: ${testPlant.id}, Attempting to sell without quantity parameter`);
 
-        // Step 2: Try to sell without quantity parameter
         cy.request({
             method: "POST",
             url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}`,
@@ -233,7 +223,6 @@ When("I send a POST request to sell a plant without quantity parameter", () => {
 
 // API_TC_16 - Verify that the API rejects floating-point values for quantity parameter
 When("I send a POST request to sell a plant with float quantity {string}", (floatQuantity) => {
-    // Step 1: Get a plant
     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/plants`,
@@ -243,7 +232,6 @@ When("I send a POST request to sell a plant with float quantity {string}", (floa
     }).then((plantsRes) => {
         expect(plantsRes.status).to.eq(200);
 
-        // Get plants array (handle both direct array and paginated response)
         let plants = null;
         if (Array.isArray(plantsRes.body)) {
             plants = plantsRes.body;
@@ -260,7 +248,6 @@ When("I send a POST request to sell a plant with float quantity {string}", (floa
             `Plant ID: ${testPlant.id}, Attempting to sell with float quantity: ${floatQuantity}`,
         );
 
-        // Step 2: Try to sell with float quantity
         cy.request({
             method: "POST",
             url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=${floatQuantity}`,
@@ -280,7 +267,6 @@ When("I send a POST request to sell a plant with float quantity {string}", (floa
 When("I send a POST request to sell a plant with non-existent plant ID {int}", (nonExistentId) => {
     cy.log(`Attempting to sell plant with non-existent ID: ${nonExistentId}`);
 
-    // Try to sell with non-existent plant ID
     cy.request({
         method: "POST",
         url: `${Cypress.env("apiUrl")}/sales/plant/${nonExistentId}?quantity=1`,
@@ -299,7 +285,6 @@ When("I send a POST request to sell a plant with non-existent plant ID {int}", (
 When("I send a DELETE request for non-existent sales record ID {int}", (nonExistentId) => {
     cy.log(`Attempting to delete non-existent sales record ID: ${nonExistentId}`);
 
-    // Try to delete non-existent sales record
     cy.request({
         method: "DELETE",
         url: `${Cypress.env("apiUrl")}/sales/${nonExistentId}`,
@@ -318,7 +303,6 @@ When("I send a DELETE request for non-existent sales record ID {int}", (nonExist
 When("I send a GET request for sales record with non-existent ID {int}", (nonExistentId) => {
     cy.log(`Attempting to retrieve non-existent sales record ID: ${nonExistentId}`);
 
-    // Try to get non-existent sales record
     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/sales/${nonExistentId}`,
@@ -335,7 +319,6 @@ When("I send a GET request for sales record with non-existent ID {int}", (nonExi
 
 // API_TC_20 - Verify that the API returns 403 when User role tries to create a sale
 When("I send a POST request to sell a plant with valid data as a User", () => {
-    // Step 1: Get a plant
     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/plants`,
@@ -345,7 +328,6 @@ When("I send a POST request to sell a plant with valid data as a User", () => {
     }).then((plantsRes) => {
         expect(plantsRes.status).to.eq(200);
 
-        // Get plants array (handle both direct array and paginated response)
         let plants = null;
         if (Array.isArray(plantsRes.body)) {
             plants = plantsRes.body;
@@ -361,7 +343,6 @@ When("I send a POST request to sell a plant with valid data as a User", () => {
 
         cy.log(`User attempting to sell Plant ID: ${testPlant.id}, Quantity: ${validQuantity}`);
 
-        // Step 2: Try to create sale as User (should be forbidden)
         cy.request({
             method: "POST",
             url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=${validQuantity}`,
@@ -379,7 +360,6 @@ When("I send a POST request to sell a plant with valid data as a User", () => {
 
 // API_TC_21 - Verify that the API returns 403 when User role tries to delete a sale
 When("I send a DELETE request for an existing sales record as a User", () => {
-    // Step 1: Login as admin and create a sale
     cy.request({
         method: "POST",
         url: `${Cypress.env("apiUrl")}/auth/login`,
@@ -390,7 +370,6 @@ When("I send a DELETE request for an existing sales record as a User", () => {
     }).then((adminLoginRes) => {
         const adminToken = adminLoginRes.body.token;
 
-        // Get a plant
         cy.request({
             method: "GET",
             url: `${Cypress.env("apiUrl")}/plants`,
@@ -408,7 +387,6 @@ When("I send a DELETE request for an existing sales record as a User", () => {
             const testPlant = plants[0];
             const validQuantity = Math.min(1, testPlant.quantity);
 
-            // Create a sale as admin
             cy.request({
                 method: "POST",
                 url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=${validQuantity}`,
@@ -421,7 +399,6 @@ When("I send a DELETE request for an existing sales record as a User", () => {
 
                 cy.log(`Created sale ID ${saleId}, User attempting to delete it`);
 
-                // Step 2: Try to delete as User (should be forbidden)
                 cy.request({
                     method: "DELETE",
                     url: `${Cypress.env("apiUrl")}/sales/${saleId}`,
@@ -443,7 +420,6 @@ When("I send a DELETE request for an existing sales record as a User", () => {
 When("I send a GET request for sales record with string ID {string}", (stringId) => {
     cy.log(`Attempting to retrieve sales record with string ID: ${stringId}`);
 
-    // Try to get sales record with string ID
     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/sales/${stringId}`,
@@ -462,7 +438,6 @@ When("I send a GET request for sales record with string ID {string}", (stringId)
 When("I send a DELETE request with string ID {string}", (stringId) => {
     cy.log(`Attempting to delete sales record with string ID: ${stringId}`);
 
-    // Try to delete sales record with string ID
     cy.request({
         method: "DELETE",
         url: `${Cypress.env("apiUrl")}/sales/${stringId}`,
