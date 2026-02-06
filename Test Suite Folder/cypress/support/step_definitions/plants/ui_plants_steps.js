@@ -655,3 +655,112 @@ Then("previously entered form data should be discarded", () => {
   plantPage.elements.quantityInput().should("have.value", "");
   plantPage.elements.categoryDropdown().should("have.value", "");
 });
+// -------------------------------------------------------------------------
+// SORTING - GIVEN STEPS
+// -------------------------------------------------------------------------
+
+Given('plants exist with names in the list', function() {
+    cy.get('tbody tr').should('have.length.greaterThan', 0);
+});
+
+// -------------------------------------------------------------------------
+// SORTING - WHEN STEPS
+// -------------------------------------------------------------------------
+
+When('I click on the {string} column header to sort ascending', function(columnName) {
+    const columnMap = {
+        'Name': 'name',
+        'Price': 'price',
+        'Stock': 'quantity'
+    };
+    
+    const fieldName = columnMap[columnName];
+    
+    // Check current sort direction
+    cy.get(`a[href*="sortField=${fieldName}"]`).first().invoke('attr', 'href').then((href) => {
+        if (href.includes('sortDir=desc')) {
+            // Already in ascending, click will go to descending, so click twice
+            cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
+            cy.wait(500);
+            cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
+        } else {
+            // In descending or no sort, click once to get ascending
+            cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
+        }
+    });
+    
+    // Verify URL has ascending sort
+    cy.url().should('include', `sortField=${fieldName}`);
+    cy.url().should('include', 'sortDir=asc');
+    cy.wait(500);
+});
+
+// -------------------------------------------------------------------------
+// SORTING - THEN STEPS
+// -------------------------------------------------------------------------
+
+Then('the plant list should be sorted by name in ascending order', function() {
+    cy.get('tbody tr td:first-child').then(($cells) => {
+        const plantNames = $cells.map((i, el) => Cypress.$(el).text().trim()).get();
+        const sortedNames = [...plantNames].sort((a, b) => a.localeCompare(b));
+        
+        // Log for debugging
+        cy.log('Actual order: ' + plantNames.join(', '));
+        cy.log('Expected order: ' + sortedNames.join(', '));
+        
+        expect(plantNames).to.deep.equal(sortedNames);
+    });
+});
+
+Then('the plants should be ordered alphabetically from A to Z', function() {
+    cy.get('tbody tr td:first-child').then(($cells) => {
+        const plantNames = $cells.map((i, el) => Cypress.$(el).text().trim()).get();
+        
+        for (let i = 0; i < plantNames.length - 1; i++) {
+            const current = plantNames[i];
+            const next = plantNames[i + 1];
+            const comparison = current.localeCompare(next);
+            
+            expect(comparison, `"${current}" should come before or equal to "${next}"`).to.be.at.most(0);
+        }
+    });
+});
+
+// -------------------------------------------------------------------------
+// NEW GIVEN STEP FOR PRICE
+// -------------------------------------------------------------------------
+
+Given('plants exist with different prices', function() {
+    cy.get('tbody tr td:nth-child(3)').should('have.length.greaterThan', 1);
+});
+
+// -------------------------------------------------------------------------
+// NEW THEN STEPS FOR PRICE
+// -------------------------------------------------------------------------
+
+Then('the plant list should be sorted by price in ascending order', function() {
+    cy.get('tbody tr td:nth-child(3)').then(($cells) => {
+        const prices = $cells.map((i, el) => parseFloat(Cypress.$(el).text().trim())).get();
+        const sortedPrices = [...prices].sort((a, b) => a - b);
+        
+        // Log for debugging
+        cy.log('Actual prices: ' + prices.join(', '));
+        cy.log('Expected prices: ' + sortedPrices.join(', '));
+        
+        expect(prices).to.deep.equal(sortedPrices);
+    });
+});
+
+Then('the plants should be ordered from low to high price', function() {
+    cy.get('tbody tr td:nth-child(3)').then(($cells) => {
+        const prices = $cells.map((i, el) => parseFloat(Cypress.$(el).text().trim())).get();
+        
+        for (let i = 0; i < prices.length - 1; i++) {
+            const current = prices[i];
+            const next = prices[i + 1];
+            
+            cy.log(`Comparing: ${current} vs ${next}`);
+            expect(current, `Price ${current} should be <= ${next}`).to.be.at.most(next);
+        }
+    });
+});

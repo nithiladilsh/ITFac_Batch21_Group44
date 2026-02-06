@@ -449,7 +449,47 @@ verifyQuantityValidationError() {
     .find('.text-danger, .invalid-feedback, .error-message', { timeout: 5000 })
     .should('be.visible');
 }
+// -------------------------------------------------------------------------
+// SORTING METHODS
+// -------------------------------------------------------------------------
 
+clickColumnHeaderForAscending(columnName) {
+    const columnMap = {
+        'Name': 'name',
+        'Price': 'price',
+        'Stock': 'quantity'
+    };
+    
+    const fieldName = columnMap[columnName];
+    
+    // Check current sort direction and click accordingly
+    cy.get(`a[href*="sortField=${fieldName}"]`).first().invoke('attr', 'href').then((href) => {
+        if (href.includes('sortDir=desc')) {
+            // Currently ascending, need to click twice to get back to ascending
+            cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
+            cy.wait(500);
+            cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
+        } else {
+            // Currently descending or no sort, click once
+            cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
+        }
+    });
+    
+    cy.url().should('include', `sortField=${fieldName}`);
+    cy.url().should('include', 'sortDir=asc');
+    cy.wait(500);
+}
+
+getPlantNames() {
+    return cy.get('tbody tr td:first-child').then(($cells) => {
+        return $cells.map((i, el) => Cypress.$(el).text().trim()).get();
+    });
+}
+getPlantPrices() {
+    return cy.get('tbody tr td:nth-child(3)').then(($cells) => {
+        return $cells.map((i, el) => parseFloat(Cypress.$(el).text().trim())).get();
+    });
+}
 }
 
 export default new PlantPage();
