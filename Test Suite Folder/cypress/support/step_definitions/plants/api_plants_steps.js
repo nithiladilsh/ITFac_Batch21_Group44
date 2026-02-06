@@ -95,7 +95,7 @@ const cleanUpPlantApiData = () => {
             );
 
             if (junkPlants.length > 0) {
-              cy.log(`🧹 Found ${junkPlants.length} test plants. Deleting...`);
+              cy.log(`Found ${junkPlants.length} test plants. Deleting...`);
               junkPlants.forEach((plant) => {
                 cy.request({
                   method: "DELETE",
