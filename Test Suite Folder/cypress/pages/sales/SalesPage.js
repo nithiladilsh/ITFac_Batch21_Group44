@@ -4,15 +4,13 @@ class SalesPage {
         salesTable: () => cy.get("table, .sales-list, [class*='table']"),
         salesRecords: () => this.elements.salesTable().find("tbody tr"),
         deleteButton: (index = 0) =>
-            this.elements
-                .salesRecords()
-                .eq(index)
-                .find("button.btn-outline-danger, button .bi-trash")
-                .first(),
+            this.elements.salesRecords().eq(index).find("button.btn-outline-danger").first(),
     };
+
     visit() {
         cy.visit("/sales");
     }
+
     clickSellPlant() {
         this.elements.sellPlantBtn().click();
     }
@@ -30,7 +28,8 @@ class SalesPage {
     }
 
     clickDeleteButton(index = 0) {
-        this.elements.deleteButton(index).click();
+        // Ensure button is visible and clickable before clicking
+        this.elements.deleteButton(index).should("be.visible").and("be.enabled").click();
     }
 
     getSalesRecordCount() {
