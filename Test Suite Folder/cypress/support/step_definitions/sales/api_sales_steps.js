@@ -369,7 +369,6 @@ When("I send a DELETE request for an existing sales record as a User", () => {
         },
     }).then((adminLoginRes) => {
         const adminToken = adminLoginRes.body.token;
-
         cy.request({
             method: "GET",
             url: `${Cypress.env("apiUrl")}/plants`,
@@ -383,10 +382,13 @@ When("I send a DELETE request for an existing sales record as a User", () => {
             } else if (plantsRes.body.content && Array.isArray(plantsRes.body.content)) {
                 plants = plantsRes.body.content;
             }
+            const testPlant = plants.find(p => p.quantity > 0);
 
-            const testPlant = plants[0];
-            const validQuantity = Math.min(1, testPlant.quantity);
+            if (!testPlant) {
+                throw new Error("Test Failed: No plants found with available stock. Cannot create a sale to test deletion.");
+            }
 
+            const validQuantity = 1; 
             cy.request({
                 method: "POST",
                 url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=${validQuantity}`,
@@ -397,14 +399,13 @@ When("I send a DELETE request for an existing sales record as a User", () => {
                 const saleId = createRes.body.id;
                 testSaleIds.push(saleId);
 
-                cy.log(`Created sale ID ${saleId}, User attempting to delete it`);
-
+                cy.log(`Created sale ID ${saleId} for Plant ${testPlant.id}. Now User will attempt to delete it.`);
                 cy.request({
                     method: "DELETE",
                     url: `${Cypress.env("apiUrl")}/sales/${saleId}`,
                     failOnStatusCode: false,
                     headers: {
-                        Authorization: `Bearer ${authToken}`,
+                        Authorization: `Bearer ${authToken}`, 
                         "Content-Type": "application/json",
                     },
                 }).then((res) => {
