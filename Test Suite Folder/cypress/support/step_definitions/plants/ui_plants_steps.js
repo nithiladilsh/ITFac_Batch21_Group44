@@ -764,3 +764,42 @@ Then('the plants should be ordered from low to high price', function() {
         }
     });
 });
+
+// -------------------------------------------------------------------------
+// NEW GIVEN STEP FOR QUANTITY
+// -------------------------------------------------------------------------
+
+Given('plants exist with different stock quantities', function() {
+    cy.get('tbody tr td:nth-child(4) span:first-child').should('have.length.greaterThan', 1);
+});
+
+// -------------------------------------------------------------------------
+// NEW THEN STEPS FOR QUANTITY
+// -------------------------------------------------------------------------
+
+Then('the plant list should be sorted by quantity in ascending order', function() {
+    cy.get('tbody tr td:nth-child(4) span:first-child').then(($cells) => {
+        const quantities = $cells.map((i, el) => parseInt(Cypress.$(el).text().trim())).get();
+        const sortedQuantities = [...quantities].sort((a, b) => a - b);
+        
+        // Log for debugging
+        cy.log('Actual quantities: ' + quantities.join(', '));
+        cy.log('Expected quantities: ' + sortedQuantities.join(', '));
+        
+        expect(quantities).to.deep.equal(sortedQuantities);
+    });
+});
+
+Then('the plants should be ordered from low to high stock quantity', function() {
+    cy.get('tbody tr td:nth-child(4) span:first-child').then(($cells) => {
+        const quantities = $cells.map((i, el) => parseInt(Cypress.$(el).text().trim())).get();
+        
+        for (let i = 0; i < quantities.length - 1; i++) {
+            const current = quantities[i];
+            const next = quantities[i + 1];
+            
+            cy.log(`Comparing: ${current} vs ${next}`);
+            expect(current, `Quantity ${current} should be <= ${next}`).to.be.at.most(next);
+        }
+    });
+});

@@ -490,6 +490,11 @@ getPlantPrices() {
         return $cells.map((i, el) => parseFloat(Cypress.$(el).text().trim())).get();
     });
 }
+getPlantQuantities() {
+    return cy.get('tbody tr td:nth-child(4) span:first-child').then(($cells) => {
+        return $cells.map((i, el) => parseInt(Cypress.$(el).text().trim())).get();
+    });
+}
 }
 
 export default new PlantPage();

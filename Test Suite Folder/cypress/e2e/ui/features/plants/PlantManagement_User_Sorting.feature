@@ -24,3 +24,13 @@ Scenario: UI TC 63 - Verify sorting by Price
     When I click on the "Price" column header to sort ascending
     Then the plant list should be sorted by price in ascending order
     And the plants should be ordered from low to high price 
+
+# -------------------------------------------------------------------------
+  # SORTING BY QUANTITY/STOCK
+  # -------------------------------------------------------------------------
+
+Scenario: UI TC 64 - Verify sorting by Quantity
+    Given plants exist with different stock quantities
+    When I click on the "Stock" column header to sort ascending
+    Then the plant list should be sorted by quantity in ascending order
+    And the plants should be ordered from low to high stock quantity
