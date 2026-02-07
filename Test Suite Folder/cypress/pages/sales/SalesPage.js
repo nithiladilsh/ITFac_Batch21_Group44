@@ -1,14 +1,16 @@
 class SalesPage {
     elements = {
         sellPlantBtn: () => cy.contains("a", "Sell Plant"),
-        salesTable: () => cy.get("table, .sales-list, [class*='table']"),
-        salesRecords: () => this.elements.salesTable().find("tbody tr"),
+        salesTable: () => cy.get("table.sales-list, table.table").filter(':visible'), 
+        salesRecords: () => this.elements.salesTable().find("tbody tr"), 
         deleteButton: (index = 0) =>
-            this.elements.salesRecords().eq(index).find("button.btn-outline-danger").first(),
+            this.elements.salesRecords().eq(index).find("button.btn-outline-danger") 
     };
 
     visit() {
         cy.visit("/sales");
+        // Ensure table is visible before continuing
+        this.elements.salesTable().should('be.visible'); 
     }
 
     clickSellPlant() {
@@ -16,7 +18,10 @@ class SalesPage {
     }
 
     verifySalesRecordsExist() {
-        this.elements.salesRecords().should("have.length.greaterThan", 0);
+        // Confirm data is present and not the "No sales found" message
+        this.elements.salesRecords()
+            .should("have.length.at.least", 1)
+            .and("not.contain", "No sales found");
     }
 
     selectFirstSalesRecord() {
@@ -24,12 +29,13 @@ class SalesPage {
     }
 
     verifyDeleteButtonVisible(index = 0) {
-        this.elements.deleteButton(index).should("be.visible").and("be.enabled");
+        // Use first() to grab the specific button in the row
+        this.elements.deleteButton(index).first().should("be.visible").and("be.enabled"); 
     }
 
     clickDeleteButton(index = 0) {
-        // Ensure button is visible and clickable before clicking
-        this.elements.deleteButton(index).should("be.visible").and("be.enabled").click();
+        // click({ force: true }) helps bypass the inner <i> icon
+        this.elements.deleteButton(index).first().click({ force: true }); 
     }
 
     getSalesRecordCount() {

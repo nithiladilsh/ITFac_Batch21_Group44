@@ -1,68 +1,76 @@
 import { Given, When, Then, Before, After } from "@badeball/cypress-cucumber-preprocessor";
 import categoryPage from "../../../pages/categories/CategoryPage";
 
+// CACHED ADMIN TOKEN
+let cachedAdminToken = null;
+
+const getAdminToken = () => {
+  if (cachedAdminToken) return cy.wrap(cachedAdminToken);
+  return cy.request({
+    method: 'POST',
+    url: `${Cypress.env('apiUrl')}/auth/login`,
+    body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') },
+    log: false 
+  }).then((res) => {
+    cachedAdminToken = res.body.token;
+    return cachedAdminToken;
+  });
+};
+
 // Test Data Names for Cleanup
 const TEST_DATA_NAMES = [
   "Chives", "Rue", "Vegetables", "Blueberries", "plants", "Temp", "Herbs"
 ];
 
-// cleanup function to remove test data
+// Optimized Cleanup Function
 const cleanUpTestData = () => {
-  cy.log("Running Cleanup Routine...");
-
-  cy.request({
-    method: 'POST',
-    url: `${Cypress.env('apiUrl')}/auth/login`,
-    body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') },
-    failOnStatusCode: false
-  }).then((loginRes) => {
-    if (!loginRes.body.token) return;
-    const token = loginRes.body.token;
-
+  // Use cached token to avoid re-logging in
+  getAdminToken().then(token => {
     cy.request({
       method: 'GET',
       url: `${Cypress.env('apiUrl')}/categories/page?page=0&size=2000`,
       headers: { 'Authorization': `Bearer ${token}` },
-      failOnStatusCode: false
+      failOnStatusCode: false,
+      log: false
     }).then((listRes) => {
       if (listRes.body && listRes.body.content) {
         const junkItems = listRes.body.content.filter(c =>
           TEST_DATA_NAMES.includes(c.name) || c.name.startsWith("plants_") || c.name.startsWith("sort_")
         );
 
-        junkItems.forEach((item) => {
-          cy.request({
-            method: 'DELETE',
-            url: `${Cypress.env('apiUrl')}/categories/${item.id}`,
-            headers: { 'Authorization': `Bearer ${token}` },
-            failOnStatusCode: false
-          });
-        });
+        if (junkItems.length > 0) {
+            cy.log(`🧹 Cleaning up ${junkItems.length} categories...`);
+            junkItems.forEach((item) => {
+              cy.request({
+                method: 'DELETE',
+                url: `${Cypress.env('apiUrl')}/categories/${item.id}`,
+                headers: { 'Authorization': `Bearer ${token}` },
+                failOnStatusCode: false,
+                log: false
+              });
+            });
+        }
       }
     });
   });
 };
 
-// 1. GLOBAL BEFORE (Clean Slate)
-Before(() => {
+// 1. GLOBAL CLEANUP (RESTRICTED TO @category)
+Before({ tags: "@category" }, () => {
   cleanUpTestData();
 });
 
 // 2. ADMIN SETUP (@requires_parent)
 Before({ tags: "@requires_parent" }, () => {
   cy.log("Creating 'Herbs' parent for Admin test...");
-  cy.request({
-    method: 'POST',
-    url: `${Cypress.env('apiUrl')}/auth/login`,
-    body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') }
-  }).then((loginRes) => {
-    const token = loginRes.body.token;
+  getAdminToken().then(token => {
     cy.request({
       method: 'POST',
       url: `${Cypress.env('apiUrl')}/categories`,
       headers: { 'Authorization': `Bearer ${token}` },
       body: { "name": "Herbs", "parent": null },
-      failOnStatusCode: false
+      failOnStatusCode: false,
+      log: false
     });
   });
 });
@@ -70,37 +78,33 @@ Before({ tags: "@requires_parent" }, () => {
 // 3. STANDARD USER SETUP (@setup_standard_data)
 Before({ tags: "@setup_standard_data" }, () => {
   cy.log("Seeding Database for Standard User Tests...");
-
-  cy.request({
-    method: 'POST',
-    url: `${Cypress.env('apiUrl')}/auth/login`,
-    body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') }
-  }).then((loginRes) => {
-    const token = loginRes.body.token;
+  getAdminToken().then(token => {
     const headers = { 'Authorization': `Bearer ${token}` };
 
-    cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "Vegetables", "parent": null }, failOnStatusCode: false });
+    cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "Vegetables", "parent": null }, failOnStatusCode: false, log: false });
 
     cy.request({
       method: 'POST',
       url: `${Cypress.env('apiUrl')}/categories`,
       headers,
       body: { "name": "Herbs", "parent": null },
-      failOnStatusCode: false
+      failOnStatusCode: false,
+      log: false
     }).then((herbsRes) => {
       const herbsId = herbsRes.body.id;
-
       if (herbsId) {
         cy.request({
           method: 'POST',
           url: `${Cypress.env('apiUrl')}/categories`,
           headers,
           body: { "name": "Chives", "parent": { "id": herbsId } },
-          failOnStatusCode: false
+          failOnStatusCode: false,
+          log: false
         });
       }
     });
 
+    // Bulk creation loop
     for (let i = 1; i <= 15; i++) {
       const num = i < 10 ? `0${i}` : i;
       cy.request({
@@ -108,7 +112,8 @@ Before({ tags: "@setup_standard_data" }, () => {
         url: `${Cypress.env('apiUrl')}/categories`,
         headers,
         body: { "name": `plants_${num}`, "parent": null },
-        failOnStatusCode: false
+        failOnStatusCode: false,
+        log: false
       });
     }
   });
@@ -117,69 +122,60 @@ Before({ tags: "@setup_standard_data" }, () => {
 // 4. DUPLICATE DATA SETUP (@setup_duplicate_data)
 Before({ tags: "@setup_duplicate_data" }, () => {
     cy.log("Seeding 'plants' for duplicate check...");
-    cy.request({
-        method: 'POST',
-        url: `${Cypress.env('apiUrl')}/auth/login`,
-        body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') }
-    }).then((loginRes) => {
-        const token = loginRes.body.token;
+    getAdminToken().then(token => {
         cy.request({
             method: 'POST',
             url: `${Cypress.env('apiUrl')}/categories`,
             headers: { 'Authorization': `Bearer ${token}` },
             body: { "name": "plants", "parent": null },
-            failOnStatusCode: false
+            failOnStatusCode: false,
+            log: false
         });
     });
 });
 
+// 5. SORTING SETUP (@setup_sorting_data)
 Before({ tags: "@setup_sorting_data" }, () => {
   cy.log("Seeding specific data for Sorting Test...");
-  cy.request({
-    method: 'POST',
-    url: `${Cypress.env('apiUrl')}/auth/login`,
-    body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') }
-  }).then((loginRes) => {
-    const token = loginRes.body.token;
+  getAdminToken().then(token => {
     const headers = { 'Authorization': `Bearer ${token}` };
 
-    // Fetch and delete potential leftovers
+    // Fetch and delete potential leftovers first
     cy.request({
         method: 'GET',
         url: `${Cypress.env('apiUrl')}/categories/page?page=0&size=2000`,
         headers,
-        failOnStatusCode: false
+        failOnStatusCode: false,
+        log: false
     }).then((listRes) => {
         if (listRes.body && listRes.body.content) {
             const leftovers = listRes.body.content.filter(c => c.name.startsWith("sort_"));
             leftovers.forEach(item => {
-                cy.request({ method: 'DELETE', url: `${Cypress.env('apiUrl')}/categories/${item.id}`, headers, failOnStatusCode: false });
+                cy.request({ method: 'DELETE', url: `${Cypress.env('apiUrl')}/categories/${item.id}`, headers, failOnStatusCode: false, log: false });
             });
         }
     });
 
-    // Create Parent A
-    cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Parent_A", "parent": null }, failOnStatusCode: false })
+    // Create Sorting Data
+    cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Parent_A", "parent": null }, failOnStatusCode: false, log: false })
       .then((resA) => {
          if (resA.body.id) {
-             cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Child_A", "parent": { "id": resA.body.id } }, failOnStatusCode: false });
+             cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Child_A", "parent": { "id": resA.body.id } }, failOnStatusCode: false, log: false });
          }
       });
 
-    // Create Parent Z
-    cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Parent_Z", "parent": null }, failOnStatusCode: false })
+    cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Parent_Z", "parent": null }, failOnStatusCode: false, log: false })
       .then((resZ) => {
          if (resZ.body.id) {
-             cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Child_Z", "parent": { "id": resZ.body.id } }, failOnStatusCode: false });
+             cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Child_Z", "parent": { "id": resZ.body.id } }, failOnStatusCode: false, log: false });
          }
       });
 
-    // Create Orphan
-    cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Child_Orphan", "parent": null }, failOnStatusCode: false });
+    cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "sort_Child_Orphan", "parent": null }, failOnStatusCode: false, log: false });
   });
 });
 
-After(() => {
+After({ tags: "@category" }, () => {
   cleanUpTestData();
 });
 
@@ -202,9 +198,9 @@ function tryToAchieveNumericSortOrder(targetOrder, attempts) {
     if (targetOrder === 'desc' && !isDescending) needClick = true;
 
     if (needClick) {
-      cy.log(`ID Sort Incorrect (Current: ${isDescending ? 'DESC' : 'ASC'}). Clicking again...`);
+      cy.log(`ID Sort Incorrect. Clicking again...`);
       categoryPage.clickIdColumnHeader();
-      cy.wait(1000);
+      cy.wait(200); 
       tryToAchieveNumericSortOrder(targetOrder, attempts + 1);
     }
   });
@@ -212,10 +208,7 @@ function tryToAchieveNumericSortOrder(targetOrder, attempts) {
 
 // Helper: Alphabetical Retry Logic 
 function tryToAchieveSortOrder(targetOrder, attempts) {
-  if (attempts >= 3) {
-    cy.log("Max attempts reached. Stopping retry.");
-    return; 
-  }
+  if (attempts >= 3) return; 
 
   categoryPage.getNameColumnValues().then((values) => {
     if (values.length < 2) return;
@@ -225,9 +218,6 @@ function tryToAchieveSortOrder(targetOrder, attempts) {
     const isDescending = first.localeCompare(last) > 0;
     const isAscending = !isDescending;
 
-    // Log current status
-    cy.log(`Attempt ${attempts + 1}: Current is ${isDescending ? 'DESC' : 'ASC'}. Target is ${targetOrder.toUpperCase()}`);
-
     let needClick = false;
     if (targetOrder === 'asc' && !isAscending) needClick = true;
     if (targetOrder === 'desc' && !isDescending) needClick = true;
@@ -235,22 +225,17 @@ function tryToAchieveSortOrder(targetOrder, attempts) {
     if (needClick) {
       cy.log("Incorrect order. Clicking header again...");
       categoryPage.clickNameColumnHeader();
-      cy.wait(1000);
-      // Recursively try again
+      cy.wait(200); 
       tryToAchieveSortOrder(targetOrder, attempts + 1);
-    } else {
-      cy.log("Order matches! Proceeding.");
     }
   });
 }
 
+// --- STEP DEFINITIONS ---
+
 // UI_TC_01: Verify that a user can add a new category with an empty parent category.
 Given("I am on the Category Management Page", () => {
   categoryPage.visit();
-});
-
-When('I click the "Add Category" button', () => {
-  categoryPage.clickAddCategory();
 });
 
 When('I enter {string} in the Category Name field', (name) => {
@@ -259,10 +244,6 @@ When('I enter {string} in the Category Name field', (name) => {
 
 When('I ensure the "Parent Category" dropdown is empty', () => {
   categoryPage.selectParent("empty");
-});
-
-When('I click the "Save" button', () => {
-  categoryPage.clickSave();
 });
 
 Then('I should see the success message {string}', (message) => {
@@ -279,10 +260,6 @@ When('I select {string} from the Parent Category dropdown', (parentName) => {
 });
 
 // UI_TC_03 - Verify that the Cancel button functionality closes the form without saving
-When('I click the "Cancel" button', () => {
-  categoryPage.clickCancel();
-});
-
 Then('I should be redirected to the Category List', () => {
   cy.url().should('include', '/categories');
   cy.contains('Add A Category').should('be.visible');
@@ -324,10 +301,6 @@ Then('I should see pagination controls at the bottom', () => {
 // UI_TC_12 - Verify that a User can successfully search for a category by full name
 When('I enter {string} in the Search bar', (searchTerm) => {
   categoryPage.enterSearchTerm(searchTerm);
-});
-
-When('I click the "Search" button', () => {
-  categoryPage.clickSearch();
 });
 
 Then('I should not see {string} in the category list', (name) => {
@@ -389,10 +362,6 @@ Then('I should see the error banner {string}', (message) => {
 });
 
 // UI_TC_67 - Verify that resetting the search clears the input field
-When('I click the "Reset" button', () => {
-  categoryPage.clickReset();
-});
-
 Then('the Search bar should be empty', () => {
   categoryPage.verifySearchInputEmpty();
 });
@@ -401,14 +370,16 @@ Then('the category list should show multiple items', () => {
   categoryPage.verifyMultipleItems();
 });
 
-//215131E
 // UI_TC_42 - Verify that the "Delete" button is visible and clickable
 Given('if no Category exists, I create a new Category named "TemporyC"', function () {
   categoryPage.ensureAtLeastOneCategoryExists("TemporyC");
 });
 
+When('I click the "Cancel" button in the Edit Category form', () => {
+  categoryPage.clickEditCancel();
+});
+
 When("I view the Category List", function () {
-  // This step simply ensures the category table is visible (i.e., the list is loaded)
   categoryPage.verifyTableVisible();
 });
 
@@ -456,10 +427,6 @@ When('I note the current name of the first category', () => {
   categoryPage.captureCategoryNameAtRow(0);
 });
 
-When('I click the "Cancel" button in the Edit Category form', () => {
-  categoryPage.clickEditCancel();
-});
-
 Then('I should be navigated back to the Category List', () => {
   categoryPage.verifyNavigatedBackToCategoryList();
 });
@@ -469,8 +436,6 @@ Then('the category name should remain unchanged', () => {
 });
 
 // UI_TC_48 - Verify "Edit" button is not visible or disabled for non-admin users
-
-// Step: Given I am logged in as a Non-Admin User
 Given('I am logged in as a Non-Admin User', () => {
   categoryPage.loginAsStandardUser();
 });
@@ -501,7 +466,7 @@ Given("multiple categories with different parents exist", () => {
 
 When('I click the "Parent" column header to sort ascending', () => {
   categoryPage.clickParentColumnHeader();
-  cy.wait(500); 
+  cy.wait(200); 
 });
 
 Then('the Parent Category column should be sorted in ascending order', () => {
@@ -510,7 +475,7 @@ Then('the Parent Category column should be sorted in ascending order', () => {
 
 When('I click the "Parent" column header to sort descending', () => {
   categoryPage.clickParentColumnHeader();
-  cy.wait(500);
+  cy.wait(200);
 });
 
 Then('the Parent Category column should be sorted in descending order', () => {
@@ -518,10 +483,9 @@ Then('the Parent Category column should be sorted in descending order', () => {
 });
 
 // UI_TC_51 - Verify that Name column supports Alphabetical Sorting
-
 When('I click the "Name" column header to sort ascending', () => {
   categoryPage.clickNameColumnHeader();
-  cy.wait(1000);
+  cy.wait(200);
   cy.wrap(null).then(() => {
     return tryToAchieveSortOrder('asc', 0);
   });
@@ -533,7 +497,7 @@ Then('the Name column should be sorted in ascending order', () => {
 
 When('I click the "Name" column header to sort descending', () => {
   categoryPage.clickNameColumnHeader();
-  cy.wait(1000);
+  cy.wait(200);
   cy.wrap(null).then(() => {
     return tryToAchieveSortOrder('desc', 0);
   });
@@ -544,12 +508,9 @@ Then('the Name column should be sorted in descending order', () => {
 });
 
 // UI_TC_52 - Verify that ID column supports Numeric Sorting
-
 When('I click the "ID" column header to sort ascending', () => {
   categoryPage.clickIdColumnHeader();
-  cy.wait(1000);
-
-  // Use Retry Logic to ensure we get to Ascending
+  cy.wait(200);
   cy.wrap(null).then(() => {
     return tryToAchieveNumericSortOrder('asc', 0);
   });
@@ -561,9 +522,7 @@ Then('the ID column should be sorted in ascending order', () => {
 
 When('I click the "ID" column header to sort descending', () => {
   categoryPage.clickIdColumnHeader();
-  cy.wait(1000);
-
-  // Use Retry Logic for Descending
+  cy.wait(200);
   cy.wrap(null).then(() => {
     return tryToAchieveNumericSortOrder('desc', 0);
   });
@@ -572,4 +531,3 @@ When('I click the "ID" column header to sort descending', () => {
 Then('the ID column should be sorted in descending order', () => {
   categoryPage.verifyIdColumnSorted('desc');
 });
-

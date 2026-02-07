@@ -1,3 +1,4 @@
+@api
 Feature: Sales API - Admin Scenarios
 
     Background:

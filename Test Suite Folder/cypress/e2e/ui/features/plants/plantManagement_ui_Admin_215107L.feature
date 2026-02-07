@@ -1,14 +1,12 @@
-@setup_plant_data
+@plant @setup_plant_data
 Feature: Plant List Management (Admin Scenarios)
 
 Background:
     Given I am logged in as an Admin
     And I am on the Plant List Page
 
-# -------------------------------------------------------------------------
-# ADD PLANT BUTTON VISIBILITY
-# -------------------------------------------------------------------------
 
+# ADD PLANT BUTTON VISIBILITY
 Scenario: UI TC 32a Verify "Add Plant" button is visible for Admin
     Then the "Add Plant" button should be visible
     And the "Add Plant" button should be clickable

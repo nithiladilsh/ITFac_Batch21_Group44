@@ -1,14 +1,11 @@
-@setup_plant_data
+@plant @setup_plant_data
 Feature: Plant List Management (User Scenarios)
 
 Background:
     Given I am logged in as a Standard User
     And I am on the Plant List Page
 
-  # -------------------------------------------------------------------------
   # LIST DISPLAY & PAGINATION
-  # -------------------------------------------------------------------------
-
 Scenario: UI TC 37 - Verify plants are displayed in a paginated list
     Given the number of plants exceeds the default page size
     When the Plant List page is loaded
@@ -26,10 +23,7 @@ Scenario: UI TC 38 - Verify pagination controls are visible and functional
     Then the previous set of plant records should be displayed
     And the plant list should be updated correctly without errors
 
-  # -------------------------------------------------------------------------
   # SEARCH FUNCTIONALITY
-  # -------------------------------------------------------------------------
-
 Scenario: UI TC 39 - Verify searching by plant name updates the displayed results
     Given plants exist with different names
     When I enter a valid plant name or partial name in the search field
@@ -44,10 +38,8 @@ Scenario: UI TC 40 - Verify “No plants found” message is displayed when list
     Then the message "No plants found" is displayed clearly
     And no plant cards or rows are shown
 
-  # -------------------------------------------------------------------------
-  # VISUAL INDICATORS
-  # -------------------------------------------------------------------------
 
+  # VISUAL INDICATORS
 Scenario: UI TC 41 - Verify “Low” badge is visually displayed on plant card when stock is low
     Given a plant exists with quantity less than 5
     When I locate the plant with low quantity

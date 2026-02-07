@@ -1,3 +1,4 @@
+@category
 Feature: Category Management (Admin Scenarios)
 
   Background:

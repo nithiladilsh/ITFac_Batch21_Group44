@@ -1,4 +1,4 @@
-@setup_plant_data
+@plant @setup_plant_data
 Feature: Plant List Sorting by Name (User Scenarios)
 
 Background:

@@ -1,3 +1,4 @@
+@api
 Feature: Plant API Validation (Admin)
 
 Background:

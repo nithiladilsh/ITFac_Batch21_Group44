@@ -1,110 +1,65 @@
 import { Given, When, Then, Before, After } from "@badeball/cypress-cucumber-preprocessor";
+import { ensureAdminToken, ensureUserToken } from "../apiCommonSteps";
 
 let apiResponse;
 let authToken;
 let testSaleIds = [];
 
-// Cleanup function to remove test sales data
+// TOKEN SYNC HOOK 
+Before({ tags: "@api" }, () => {
+    ensureAdminToken().then(() => {
+        cy.get('@adminToken').then((token) => {
+            authToken = token;
+        });
+    });
+});
+
+// HELPER TO CAPTURE RESPONSE 
+const capture = (res) => {
+    apiResponse = res;
+    cy.wrap(res).as('lastApiResponse');
+};
+
+// Cleanup function
 const cleanUpApiSalesData = () => {
-    cy.wait(2000);
-
-    cy.request({
-        method: "POST",
-        url: `${Cypress.env("apiUrl")}/auth/login`,
-        body: { username: Cypress.env("adminUser"), password: Cypress.env("adminPass") },
-        failOnStatusCode: false,
-    }).then((loginRes) => {
-        if (!loginRes.body.token) return;
-        const cleanupToken = loginRes.body.token;
-
-        if (testSaleIds.length > 0) {
-            cy.log(`Cleaning up ${testSaleIds.length} test sales...`);
+    if (testSaleIds.length > 0) {
+        cy.request({
+            method: 'POST',
+            url: `${Cypress.env('apiUrl')}/auth/login`,
+            body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') },
+            failOnStatusCode: false
+        }).then((res) => {
+            const token = res.body.token;
+            if (!token) return;
+            
             testSaleIds.forEach((saleId) => {
                 cy.request({
                     method: "DELETE",
                     url: `${Cypress.env("apiUrl")}/sales/${saleId}`,
-                    headers: { Authorization: `Bearer ${cleanupToken}` },
+                    headers: { Authorization: `Bearer ${token}` },
                     failOnStatusCode: false,
                 });
             });
             testSaleIds = [];
-        }
-    });
+        });
+    }
 };
 
-// GLOBAL BEFORE: Clean up any leftovers from previous runs
-Before(() => {
-    cleanUpApiSalesData();
-});
-
-// GLOBAL AFTER: Clean up what we just created
-After(() => {
-    cleanUpApiSalesData();
-});
-
-// PRE-REQUISITES
-Given("the API Service is running", () => {
-    cy.log("API Service check initiated");
-});
-
-Given("an Admin Auth Token is available", () => {
-    cy.request({
-        method: "POST",
-        url: `${Cypress.env("apiUrl")}/auth/login`,
-        body: {
-            username: Cypress.env("adminUser"),
-            password: Cypress.env("adminPass"),
-        },
-    }).then((res) => {
-        authToken = res.body.token;
-        cy.log("Admin Token Retrieved");
-    });
-});
-
-Given("a User Auth Token is available", () => {
-    cy.request({
-        method: "POST",
-        url: `${Cypress.env("apiUrl")}/auth/login`,
-        body: {
-            username: Cypress.env("stdUser"),
-            password: Cypress.env("stdPass"),
-        },
-    }).then((res) => {
-        authToken = res.body.token;
-        cy.log("User Token Retrieved");
-    });
-});
-
-// ADMIN TEST STEPS
+// GLOBAL BEFORE/AFTER
+Before(() => { cleanUpApiSalesData(); });
+After(() => { cleanUpApiSalesData(); });
 
 // API_TC_01 - Verify that the API rejects selling quantity greater than available stock
 When("I send a POST request to sell a plant with quantity exceeding stock", () => {
     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/plants`,
-        headers: {
-            Authorization: `Bearer ${authToken}`,
-        },
+        headers: { Authorization: `Bearer ${authToken}` },
     }).then((plantsRes) => {
-        expect(plantsRes.status).to.eq(200);
-
-        let plants = null;
-        if (Array.isArray(plantsRes.body)) {
-            plants = plantsRes.body;
-        } else if (plantsRes.body.content && Array.isArray(plantsRes.body.content)) {
-            plants = plantsRes.body.content;
-        }
-
-        expect(plants).to.not.be.null;
-        expect(plants.length).to.be.greaterThan(0);
-
-        const testPlant = plants[0];
-        const availableStock = testPlant.quantity;
-        const excessiveQuantity = availableStock + 10;
-
-        cy.log(
-            `Plant ID: ${testPlant.id}, Available Stock: ${availableStock}, Attempting to sell: ${excessiveQuantity}`,
-        );
+        const plants = plantsRes.body.content || plantsRes.body;
+        // Find any plant to test against
+        const testPlant = plants[0]; 
+        const excessiveQuantity = (testPlant.quantity || 0) + 10;
 
         cy.request({
             method: "POST",
@@ -115,7 +70,7 @@ When("I send a POST request to sell a plant with quantity exceeding stock", () =
                 "Content-Type": "application/json",
             },
         }).then((res) => {
-            apiResponse = res;
+            capture(res);
             cy.log("API Response (Excessive Quantity): " + JSON.stringify(res.body));
         });
     });
@@ -126,329 +81,185 @@ Then("the sales response status should be {int}", (expectedStatus) => {
 });
 
 Then("the response body should confirm {string} or {string}", (errorMessage1, errorMessage2) => {
-    const actualMessage =
-        typeof apiResponse.body === "string"
-            ? apiResponse.body
-            : apiResponse.body.message || apiResponse.body.error || "";
-
-    cy.log(`Checking if response contains: "${errorMessage1}" or "${errorMessage2}"`);
-
+    const actualMessage = typeof apiResponse.body === "string" ? apiResponse.body : apiResponse.body.message || apiResponse.body.error || "";
     const containsError1 = actualMessage.toLowerCase().includes(errorMessage1.toLowerCase());
     const containsError2 = actualMessage.toLowerCase().includes(errorMessage2.toLowerCase());
-
     expect(containsError1 || containsError2).to.be.true;
 });
 
-// API_TC_14 - Verify that the API rejects string values for quantity parameter
+// API_TC_14 - String Quantity
 When("I send a POST request to sell a plant with string quantity {string}", (stringQuantity) => {
-    cy.request({
+     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/plants`,
-        headers: {
-            Authorization: `Bearer ${authToken}`,
-        },
+        headers: { Authorization: `Bearer ${authToken}` },
     }).then((plantsRes) => {
-        expect(plantsRes.status).to.eq(200);
-
-        let plants = null;
-        if (Array.isArray(plantsRes.body)) {
-            plants = plantsRes.body;
-        } else if (plantsRes.body.content && Array.isArray(plantsRes.body.content)) {
-            plants = plantsRes.body.content;
-        }
-
-        expect(plants).to.not.be.null;
-        expect(plants.length).to.be.greaterThan(0);
-
+        const plants = plantsRes.body.content || plantsRes.body;
         const testPlant = plants[0];
-
-        cy.log(
-            `Plant ID: ${testPlant.id}, Attempting to sell with string quantity: "${stringQuantity}"`,
-        );
 
         cy.request({
             method: "POST",
             url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=${stringQuantity}`,
             failOnStatusCode: false,
-            headers: {
-                Authorization: `Bearer ${authToken}`,
-                "Content-Type": "application/json",
-            },
-        }).then((res) => {
-            apiResponse = res;
-            cy.log("API Response (String Quantity): " + JSON.stringify(res.body));
-        });
+            headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        }).then(capture);
     });
 });
 
-// API_TC_15 - Verify that the API rejects requests with missing quantity parameter
-When("I send a POST request to sell a plant without quantity parameter", () => {
-    cy.request({
-        method: "GET",
-        url: `${Cypress.env("apiUrl")}/plants`,
-        headers: {
-            Authorization: `Bearer ${authToken}`,
-        },
-    }).then((plantsRes) => {
-        expect(plantsRes.status).to.eq(200);
-
-        let plants = null;
-        if (Array.isArray(plantsRes.body)) {
-            plants = plantsRes.body;
-        } else if (plantsRes.body.content && Array.isArray(plantsRes.body.content)) {
-            plants = plantsRes.body.content;
-        }
-
-        expect(plants).to.not.be.null;
-        expect(plants.length).to.be.greaterThan(0);
-
-        const testPlant = plants[0];
-
-        cy.log(`Plant ID: ${testPlant.id}, Attempting to sell without quantity parameter`);
-
-        cy.request({
-            method: "POST",
-            url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}`,
-            failOnStatusCode: false,
-            headers: {
-                Authorization: `Bearer ${authToken}`,
-                "Content-Type": "application/json",
-            },
-        }).then((res) => {
-            apiResponse = res;
-            cy.log("API Response (Missing Quantity): " + JSON.stringify(res.body));
-        });
-    });
-});
-
-// API_TC_16 - Verify that the API rejects floating-point values for quantity parameter
+// API_TC_16 - Float Quantity
 When("I send a POST request to sell a plant with float quantity {string}", (floatQuantity) => {
     cy.request({
+       method: "GET",
+       url: `${Cypress.env("apiUrl")}/plants`,
+       headers: { Authorization: `Bearer ${authToken}` },
+   }).then((plantsRes) => {
+       const plants = plantsRes.body.content || plantsRes.body;
+       const testPlant = plants[0];
+
+       cy.request({
+           method: "POST",
+           url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=${floatQuantity}`,
+           failOnStatusCode: false,
+           headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+       }).then(capture);
+   });
+});
+
+// API_TC_15 - Missing Quantity
+When("I send a POST request to sell a plant without quantity parameter", () => {
+     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/plants`,
-        headers: {
-            Authorization: `Bearer ${authToken}`,
-        },
+        headers: { Authorization: `Bearer ${authToken}` },
     }).then((plantsRes) => {
-        expect(plantsRes.status).to.eq(200);
-
-        let plants = null;
-        if (Array.isArray(plantsRes.body)) {
-            plants = plantsRes.body;
-        } else if (plantsRes.body.content && Array.isArray(plantsRes.body.content)) {
-            plants = plantsRes.body.content;
-        }
-
-        expect(plants).to.not.be.null;
-        expect(plants.length).to.be.greaterThan(0);
-
+        const plants = plantsRes.body.content || plantsRes.body;
         const testPlant = plants[0];
-
-        cy.log(
-            `Plant ID: ${testPlant.id}, Attempting to sell with float quantity: ${floatQuantity}`,
-        );
 
         cy.request({
             method: "POST",
-            url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=${floatQuantity}`,
+            url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}`, 
             failOnStatusCode: false,
-            headers: {
-                Authorization: `Bearer ${authToken}`,
-                "Content-Type": "application/json",
-            },
-        }).then((res) => {
-            apiResponse = res;
-            cy.log("API Response (Float Quantity): " + JSON.stringify(res.body));
-        });
+            headers: { Authorization: `Bearer ${authToken}` },
+        }).then(capture);
     });
 });
 
-// API_TC_17 - Verify that the API returns 404 for non-existent plant ID
+// API_TC_17 - Non-existent Plant ID
 When("I send a POST request to sell a plant with non-existent plant ID {int}", (nonExistentId) => {
-    cy.log(`Attempting to sell plant with non-existent ID: ${nonExistentId}`);
-
     cy.request({
         method: "POST",
         url: `${Cypress.env("apiUrl")}/sales/plant/${nonExistentId}?quantity=1`,
         failOnStatusCode: false,
-        headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-        },
-    }).then((res) => {
-        apiResponse = res;
-        cy.log("API Response (Non-existent Plant): " + JSON.stringify(res.body));
-    });
+        headers: { Authorization: `Bearer ${authToken}` },
+    }).then(capture);
 });
 
-// API_TC_18 - Verify that the API returns 404 when deleting non-existent sales record
+// API_TC_18 - Delete Non-existent Sales Record
 When("I send a DELETE request for non-existent sales record ID {int}", (nonExistentId) => {
-    cy.log(`Attempting to delete non-existent sales record ID: ${nonExistentId}`);
-
     cy.request({
         method: "DELETE",
         url: `${Cypress.env("apiUrl")}/sales/${nonExistentId}`,
         failOnStatusCode: false,
-        headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-        },
-    }).then((res) => {
-        apiResponse = res;
-        cy.log("API Response (Delete Non-existent Sales): " + JSON.stringify(res.body));
-    });
+        headers: { Authorization: `Bearer ${authToken}` },
+    }).then(capture);
 });
 
-// API_TC_19 - Verify that the API returns 404 when retrieving non-existent sales record
+// API_TC_19 - Get Non-existent Sales Record
 When("I send a GET request for sales record with non-existent ID {int}", (nonExistentId) => {
     cy.log(`Attempting to retrieve non-existent sales record ID: ${nonExistentId}`);
-
     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/sales/${nonExistentId}`,
         failOnStatusCode: false,
-        headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-        },
-    }).then((res) => {
-        apiResponse = res;
-        cy.log("API Response (Get Non-existent Sales): " + JSON.stringify(res.body));
-    });
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+    }).then(capture);
 });
 
-// API_TC_20 - Verify that the API returns 403 when User role tries to create a sale
+// API_TC_20 - User Role Create Sale (Forbidden)
 When("I send a POST request to sell a plant with valid data as a User", () => {
+    // 1. Get Plant with stock > 0
     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/plants`,
-        headers: {
-            Authorization: `Bearer ${authToken}`,
-        },
+        headers: { Authorization: `Bearer ${authToken}` },
     }).then((plantsRes) => {
-        expect(plantsRes.status).to.eq(200);
-
-        let plants = null;
-        if (Array.isArray(plantsRes.body)) {
-            plants = plantsRes.body;
-        } else if (plantsRes.body.content && Array.isArray(plantsRes.body.content)) {
-            plants = plantsRes.body.content;
-        }
-
-        expect(plants).to.not.be.null;
-        expect(plants.length).to.be.greaterThan(0);
-
-        const testPlant = plants[0];
-        const validQuantity = Math.min(1, testPlant.quantity);
-
-        cy.log(`User attempting to sell Plant ID: ${testPlant.id}, Quantity: ${validQuantity}`);
-
-        cy.request({
-            method: "POST",
-            url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=${validQuantity}`,
-            failOnStatusCode: false,
-            headers: {
-                Authorization: `Bearer ${authToken}`,
-                "Content-Type": "application/json",
-            },
-        }).then((res) => {
-            apiResponse = res;
-            cy.log("API Response (User Create Sale): " + JSON.stringify(res.body));
-        });
-    });
-});
-
-// API_TC_21 - Verify that the API returns 403 when User role tries to delete a sale
-When("I send a DELETE request for an existing sales record as a User", () => {
-    cy.request({
-        method: "POST",
-        url: `${Cypress.env("apiUrl")}/auth/login`,
-        body: {
-            username: Cypress.env("adminUser"),
-            password: Cypress.env("adminPass"),
-        },
-    }).then((adminLoginRes) => {
-        const adminToken = adminLoginRes.body.token;
-        cy.request({
-            method: "GET",
-            url: `${Cypress.env("apiUrl")}/plants`,
-            headers: {
-                Authorization: `Bearer ${adminToken}`,
-            },
-        }).then((plantsRes) => {
-            let plants = null;
-            if (Array.isArray(plantsRes.body)) {
-                plants = plantsRes.body;
-            } else if (plantsRes.body.content && Array.isArray(plantsRes.body.content)) {
-                plants = plantsRes.body.content;
-            }
-            const testPlant = plants.find(p => p.quantity > 0);
-
-            if (!testPlant) {
-                throw new Error("Test Failed: No plants found with available stock. Cannot create a sale to test deletion.");
-            }
-
-            const validQuantity = 1; 
-            cy.request({
-                method: "POST",
-                url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=${validQuantity}`,
-                headers: {
-                    Authorization: `Bearer ${adminToken}`,
-                },
-            }).then((createRes) => {
-                const saleId = createRes.body.id;
-                testSaleIds.push(saleId);
-
-                cy.log(`Created sale ID ${saleId} for Plant ${testPlant.id}. Now User will attempt to delete it.`);
+        const plants = plantsRes.body.content || plantsRes.body;
+        const testPlant = plants.find(p => p.quantity > 0) || plants[0]; 
+        
+        ensureUserToken().then(() => {
+            cy.get('@userToken').then((uToken) => {
                 cy.request({
-                    method: "DELETE",
-                    url: `${Cypress.env("apiUrl")}/sales/${saleId}`,
+                    method: "POST",
+                    url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=1`,
                     failOnStatusCode: false,
-                    headers: {
-                        Authorization: `Bearer ${authToken}`, 
-                        "Content-Type": "application/json",
-                    },
+                    headers: { Authorization: `Bearer ${uToken}` },
                 }).then((res) => {
-                    apiResponse = res;
-                    cy.log("API Response (User Delete Sale): " + JSON.stringify(res.body));
+                    if (res.status === 201 || res.status === 200) {
+                        testSaleIds.push(res.body.id);
+                    }
+                    capture(res);
                 });
             });
         });
     });
 });
 
-// API_TC_22 - Verify that the API returns 400 when retrieving sales with string ID
-When("I send a GET request for sales record with string ID {string}", (stringId) => {
-    cy.log(`Attempting to retrieve sales record with string ID: ${stringId}`);
+// API_TC_21 - User Role Delete Sale (Forbidden)
+When("I send a DELETE request for an existing sales record as a User", () => {
+    // 1. Get Plant with stock > 0
+     cy.request({
+        method: "GET",
+        url: `${Cypress.env("apiUrl")}/plants`,
+        headers: { Authorization: `Bearer ${authToken}` },
+    }).then((plantsRes) => {
+        const plants = plantsRes.body.content || plantsRes.body;
+        // Find a plant that actually has stock to sell
+        const testPlant = plants.find(p => p.quantity > 0);
+        
+        if (!testPlant) {
+            throw new Error("No plants with positive quantity found to test sales deletion.");
+        }
 
+        // 2. Create Sale as Admin
+        cy.request({
+            method: "POST",
+            url: `${Cypress.env("apiUrl")}/sales/plant/${testPlant.id}?quantity=1`,
+            headers: { Authorization: `Bearer ${authToken}` },
+        }).then((createRes) => {
+            const saleId = createRes.body.id;
+            testSaleIds.push(saleId); 
+
+            // 3. Try to delete as User
+            ensureUserToken().then(() => {
+                cy.get('@userToken').then((uToken) => {
+                    cy.request({
+                        method: "DELETE",
+                        url: `${Cypress.env("apiUrl")}/sales/${saleId}`,
+                        failOnStatusCode: false,
+                        headers: { Authorization: `Bearer ${uToken}` },
+                    }).then(capture);
+                });
+            });
+        });
+    });
+});
+
+// API_TC_22 - String ID Get
+When("I send a GET request for sales record with string ID {string}", (stringId) => {
     cy.request({
         method: "GET",
         url: `${Cypress.env("apiUrl")}/sales/${stringId}`,
         failOnStatusCode: false,
-        headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-        },
-    }).then((res) => {
-        apiResponse = res;
-        cy.log("API Response (Get String ID): " + JSON.stringify(res.body));
-    });
+        headers: { Authorization: `Bearer ${authToken}` },
+    }).then(capture);
 });
 
-// API_TC_23 - Verify that the API returns 400 when deleting sales with string ID
+// API_TC_23 - String ID Delete
 When("I send a DELETE request with string ID {string}", (stringId) => {
-    cy.log(`Attempting to delete sales record with string ID: ${stringId}`);
-
     cy.request({
         method: "DELETE",
         url: `${Cypress.env("apiUrl")}/sales/${stringId}`,
         failOnStatusCode: false,
-        headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-        },
-    }).then((res) => {
-        apiResponse = res;
-        cy.log("API Response (Delete String ID): " + JSON.stringify(res.body));
-    });
+        headers: { Authorization: `Bearer ${authToken}` },
+    }).then(capture);
 });

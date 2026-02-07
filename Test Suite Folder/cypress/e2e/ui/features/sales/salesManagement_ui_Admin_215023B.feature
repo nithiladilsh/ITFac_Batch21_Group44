@@ -1,3 +1,4 @@
+@sales
 Feature: Sales Functionality - Admin Scenarios
 
     Background:

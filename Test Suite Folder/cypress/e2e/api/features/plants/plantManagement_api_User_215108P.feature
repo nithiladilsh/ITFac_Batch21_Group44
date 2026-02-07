@@ -1,3 +1,4 @@
+@api
 Feature: Plant API Modification Restrictions (Standard User)
 
 Background:
@@ -10,10 +11,7 @@ Scenario: API_TC_51 - Verify that Standard Users are forbidden from deleting pla
     Then the plant response status should be 403
     And the response indicates non-admin access is forbidden
 
-# -------------------------------------------------------------------------
   # UPDATE PLANT - RBAC
-  # -------------------------------------------------------------------------
-
 Scenario: API_TC_52 - Verify that Standard Users are forbidden from updating plants
     Given a valid plant exists in the system
     When I send a PUT request to update the plant as a standard user

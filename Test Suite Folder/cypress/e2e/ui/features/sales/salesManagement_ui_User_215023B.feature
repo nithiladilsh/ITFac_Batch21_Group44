@@ -1,3 +1,4 @@
+@sales
 Feature: Sales Functionality - Standard User Scenarios
 
     Background:

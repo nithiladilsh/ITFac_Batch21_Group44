@@ -1,3 +1,4 @@
+@api
 Feature: Category API Validation (Admin)
 
   Background:

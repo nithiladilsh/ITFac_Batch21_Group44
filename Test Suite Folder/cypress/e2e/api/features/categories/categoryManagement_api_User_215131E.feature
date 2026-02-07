@@ -1,3 +1,4 @@
+@api
 Feature: Category Validation and Retrieval (Standard User)
 
     Background:

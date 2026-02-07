@@ -1,4 +1,4 @@
-@UI_TC_53 @admin
+@plant @UI_TC_53 @admin
 Feature: Plant management - Admin actions
   Validate Admin users can see and use the Edit action for plants.
 

@@ -238,14 +238,9 @@ class PlantPage {
       const text = $option.text().trim().toLowerCase();
 
       if (value !== "") {
-        // Sub-categories should have numeric IDs
         expect(value).to.match(/^\d+$/);
-
-        // No main category labels
         expect(text).not.to.include("category");
         expect(text).not.to.include("main");
-
-        // Text must exist
         expect(text).to.not.be.empty;
       }
     });
@@ -264,7 +259,7 @@ class PlantPage {
 
   enterValidPlantData() {
     this.elements.plantNameInput().clear().type("Test Plant Cancel");
-    this.elements.categoryDropdown().select(1); // select any valid sub-category
+    this.elements.categoryDropdown().select(1); 
     this.elements.priceInput().clear().type("10");
     this.elements.quantityInput().clear().type("5");
   }
@@ -320,57 +315,44 @@ class PlantPage {
     cy.contains('tbody tr', plantName, { timeout: 10000 })
       .should('be.visible')
       .within(() => {
-        // Adjust the selector based on your table structure
-        // Assuming price is in the 3rd column (adjust index if needed)
         cy.get('td').eq(2).invoke('text').then((priceText) => {
-          // Remove currency symbols and whitespace for comparison
           const actualPrice = priceText.replace(/[^0-9.]/g, '').trim();
           expect(parseFloat(actualPrice)).to.equal(parseFloat(expectedPrice));
         });
       });
   }
 
+  // Update the quantity field
+  updateQuantity(newQuantity) {
+    this.elements.quantityInput().clear().type(newQuantity);
+  }
 
-// Add these methods to the PlantPage class
-
-// Update the quantity field
-updateQuantity(newQuantity) {
-  this.elements.quantityInput().clear().type(newQuantity);
-}
-
-// Verify a specific plant's quantity in the table
-verifyPlantQuantity(plantName, expectedQuantity) {
-  cy.contains('tbody tr', plantName, { timeout: 10000 })
-    .should('be.visible')
-    .within(() => {
-      // Adjust the column index based on your table structure
-      // Assuming quantity is in the 4th column (adjust index if needed)
-      cy.get('td').eq(3).invoke('text').then((quantityText) => {
-        // Remove any non-numeric characters and whitespace
-        const actualQuantity = quantityText.replace(/[^0-9]/g, '').trim();
-        expect(parseInt(actualQuantity)).to.equal(parseInt(expectedQuantity));
+  // Verify a specific plant's quantity in the table
+  verifyPlantQuantity(plantName, expectedQuantity) {
+    cy.contains('tbody tr', plantName, { timeout: 10000 })
+      .should('be.visible')
+      .within(() => {
+        cy.get('td').eq(3).invoke('text').then((quantityText) => {
+          // Remove any non-numeric characters and whitespace
+          const actualQuantity = quantityText.replace(/[^0-9]/g, '').trim();
+          expect(parseInt(actualQuantity)).to.equal(parseInt(expectedQuantity));
+        });
       });
-    });
-}
+  }
 
-// Add these methods to the PlantPage class
 
   // Verify price validation error is displayed - with multiple fallback strategies
   verifyPriceValidationError() {
-    // Strategy 1: Check near the price input field
     cy.get('body').then(($body) => {
       if ($body.find('#price ~ .text-danger').length > 0) {
         cy.get('#price').siblings('.text-danger').should('be.visible');
       } else if ($body.find('#price').parent().find('.text-danger').length > 0) {
         cy.get('#price').parent().find('.text-danger').should('be.visible');
       } else if ($body.find('.alert-danger').length > 0) {
-        // Strategy 2: Check for general error alert
         cy.get('.alert-danger').should('be.visible');
       } else if ($body.find('[class*="error"]').length > 0) {
-        // Strategy 3: Check for any element with "error" in class name
         cy.get('[class*="error"]').should('be.visible');
       } else {
-        // Strategy 4: Check if the field itself has error state
         cy.get('#price').should('have.class', 'is-invalid')
           .or('have.attr', 'aria-invalid', 'true');
       }
@@ -423,95 +405,81 @@ verifyPlantQuantity(plantName, expectedQuantity) {
       }
       
       if (!found) {
-        // Fallback: check if validation prevented submission by checking URL
         cy.url().should('include', '/edit/');
         cy.log('Warning: Error message element not found, but form submission was prevented');
       }
     });
   }
 
-// Verify user is still on Edit Plant page
-verifyOnEditPage() {
-  cy.url().should('include', '/ui/plants/edit/');
-  // Additionally verify the form is still visible
-  cy.get('form').should('be.visible');
-  this.elements.plantNameInput().should('be.visible');
-}
+  // Verify user is still on Edit Plant page
+  verifyOnEditPage() {
+    cy.url().should('include', '/ui/plants/edit/');
+    cy.get('form').should('be.visible');
+    this.elements.plantNameInput().should('be.visible');
+  }
 
-// Add this method to the PlantPage class
+  // SORTING METHODS
+  clickColumnHeaderForAscending(columnName) {
+      const columnMap = {
+          'Name': 'name',
+          'Price': 'price',
+          'Stock': 'quantity'
+      };
+      
+      const fieldName = columnMap[columnName];
+      
+      // Check current sort direction and click accordingly
+      cy.get(`a[href*="sortField=${fieldName}"]`).first().invoke('attr', 'href').then((href) => {
+          if (href.includes('sortDir=desc')) {
+              cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
+              cy.wait(500);
+              cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
+          } else {
+              cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
+          }
+      });
+      
+      cy.url().should('include', `sortField=${fieldName}`);
+      cy.url().should('include', 'sortDir=asc');
+      cy.wait(500);
+  }
 
-// Verify quantity validation error is displayed
-verifyQuantityValidationError() {
-  // Check for validation error near the quantity field
-  cy.get('#quantity')
-    .parent()
-    .find('.text-danger, .invalid-feedback, .error-message', { timeout: 5000 })
-    .should('be.visible');
-}
-// SORTING METHODS
-clickColumnHeaderForAscending(columnName) {
-    const columnMap = {
-        'Name': 'name',
-        'Price': 'price',
-        'Stock': 'quantity'
-    };
-    
-    const fieldName = columnMap[columnName];
-    
-    // Check current sort direction and click accordingly
-    cy.get(`a[href*="sortField=${fieldName}"]`).first().invoke('attr', 'href').then((href) => {
-        if (href.includes('sortDir=desc')) {
-            // Currently ascending, need to click twice to get back to ascending
-            cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
-            cy.wait(500);
-            cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
-        } else {
-            // Currently descending or no sort, click once
-            cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
-        }
-    });
-    
-    cy.url().should('include', `sortField=${fieldName}`);
-    cy.url().should('include', 'sortDir=asc');
-    cy.wait(500);
-}
+  getPlantNames() {
+      return cy.get('tbody tr td:first-child').then(($cells) => {
+          return $cells.map((i, el) => Cypress.$(el).text().trim()).get();
+      });
+  }
+  getPlantPrices() {
+      return cy.get('tbody tr td:nth-child(3)').then(($cells) => {
+          return $cells.map((i, el) => parseFloat(Cypress.$(el).text().trim())).get();
+      });
+  }
+  getPlantQuantities() {
+      return cy.get('tbody tr td:nth-child(4) span:first-child').then(($cells) => {
+          return $cells.map((i, el) => parseInt(Cypress.$(el).text().trim())).get();
+      });
+  }
+  // RBAC METHODS
+  verifyEditButtonNotVisible() {
+      cy.get('tbody tr td:last-child').each(($actionCell) => {
+          cy.wrap($actionCell).should('not.contain', 'Edit');
+      });
+      cy.get('tbody tr button:contains("Edit")').should('not.exist');
+      cy.get('tbody tr a:contains("Edit")').should('not.exist');
+  }
 
-getPlantNames() {
-    return cy.get('tbody tr td:first-child').then(($cells) => {
-        return $cells.map((i, el) => Cypress.$(el).text().trim()).get();
-    });
-}
-getPlantPrices() {
-    return cy.get('tbody tr td:nth-child(3)').then(($cells) => {
-        return $cells.map((i, el) => parseFloat(Cypress.$(el).text().trim())).get();
-    });
-}
-getPlantQuantities() {
-    return cy.get('tbody tr td:nth-child(4) span:first-child').then(($cells) => {
-        return $cells.map((i, el) => parseInt(Cypress.$(el).text().trim())).get();
-    });
-}
-// RBAC METHODS
-verifyEditButtonNotVisible() {
-    cy.get('tbody tr td:last-child').each(($actionCell) => {
-        cy.wrap($actionCell).should('not.contain', 'Edit');
-    });
-    cy.get('tbody tr button:contains("Edit")').should('not.exist');
-    cy.get('tbody tr a:contains("Edit")').should('not.exist');
-}
+  verifyDeleteButtonNotVisible() {
+      cy.get('tbody tr td:last-child').each(($actionCell) => {
+          cy.wrap($actionCell).should('not.contain', 'Delete');
+      });
+      cy.get('tbody tr button:contains("Delete")').should('not.exist');
+      cy.get('tbody tr a:contains("Delete")').should('not.exist');
+  }
 
-verifyDeleteButtonNotVisible() {
-    cy.get('tbody tr td:last-child').each(($actionCell) => {
-        cy.wrap($actionCell).should('not.contain', 'Delete');
-    });
-    cy.get('tbody tr button:contains("Delete")').should('not.exist');
-    cy.get('tbody tr a:contains("Delete")').should('not.exist');
-}
-
-checkActionColumn() {
-    cy.get('tbody tr').should('exist');
-    cy.get('tbody tr td:last-child').should('exist');
-}
+  checkActionColumn() {
+      cy.get('tbody tr').should('exist');
+      cy.get('tbody tr td:last-child').should('exist');
+  }
 }
 
 export default new PlantPage();
