@@ -1,4 +1,4 @@
-import { Given, When, Then, Before, After } from "@badeball/cypress-cucumber-preprocessor";
+import { Given, When, Then, Before } from "@badeball/cypress-cucumber-preprocessor";
 import { ensureAdminToken, ensureUserToken } from "../apiCommonSteps";
 
 let apiResponse;
@@ -19,35 +19,6 @@ const capture = (res) => {
     apiResponse = res;
     cy.wrap(res).as('lastApiResponse');
 };
-
-// Cleanup function
-const cleanUpApiSalesData = () => {
-    if (testSaleIds.length > 0) {
-        cy.request({
-            method: 'POST',
-            url: `${Cypress.env('apiUrl')}/auth/login`,
-            body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') },
-            failOnStatusCode: false
-        }).then((res) => {
-            const token = res.body.token;
-            if (!token) return;
-            
-            testSaleIds.forEach((saleId) => {
-                cy.request({
-                    method: "DELETE",
-                    url: `${Cypress.env("apiUrl")}/sales/${saleId}`,
-                    headers: { Authorization: `Bearer ${token}` },
-                    failOnStatusCode: false,
-                });
-            });
-            testSaleIds = [];
-        });
-    }
-};
-
-// GLOBAL BEFORE/AFTER
-Before(() => { cleanUpApiSalesData(); });
-After(() => { cleanUpApiSalesData(); });
 
 // API_TC_01 - Verify that the API rejects selling quantity greater than available stock
 When("I send a POST request to sell a plant with quantity exceeding stock", () => {

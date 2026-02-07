@@ -19,67 +19,7 @@ const capture = (res) => {
     cy.wrap(res).as('lastApiResponse');
 };
 
-// CLEANUP FUNCTION 
-const cleanUpApiData = () => {
-    const prefix = "API_";
-    const deletePatterns = [
-        (name) => name.startsWith(prefix),
-        (name) => /^\d+$/.test(name), // Matches ANY numeric string (e.g., "1234567", "54321")
-        (name) => name.startsWith("Del"),
-        (name) => name.startsWith("Upd"),
-        (name) => ["Alpha", "Beta", "Charlie", "Zeta", "Omega", "Bravo"].includes(name),
-        (name) => name.startsWith("Par") || name.startsWith("Chi"),
-        (name) => name.startsWith("S_") || name.startsWith("P_"), // leftovers like S_967
-        (name) => name.startsWith("TC") || /^[AC]\d+$/.test(name) // leftovers like TC937, A464, C192
-    ];
-
-    return cy.request({
-        method: 'POST',
-        url: `${Cypress.env('apiUrl')}/auth/login`,
-        body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') },
-        failOnStatusCode: false
-    }).then((loginRes) => {
-        if (!loginRes.body.token) return;
-        const cleanupToken = loginRes.body.token;
-
-        return cy.request({
-            method: 'GET',
-            url: `${Cypress.env('apiUrl')}/categories/page?page=0&size=2000`,
-            headers: { 'Authorization': `Bearer ${cleanupToken}` },
-            failOnStatusCode: false
-        }).then((listRes) => {
-            if (listRes.body && listRes.body.content) {
-                // Filter junk items but PROTECT Seed Data (IDs < 100)
-                const junkItems = listRes.body.content.filter(c => {
-                    const nameStr = String(c.name);
-                    const isSeedData = c.id < 100; 
-                    const matchesPattern = deletePatterns.some(pattern => pattern(nameStr));
-                    return matchesPattern && !isSeedData;
-                });
-
-                if (junkItems.length > 0) {
-                    // Sort by ID descending (Children created later have higher IDs)
-                    junkItems.sort((a, b) => b.id - a.id);
-
-                    // Sequential Delete to avoid 500 errors on Parents
-                    cy.wrap(junkItems).each((item) => {
-                        cy.request({
-                            method: 'DELETE',
-                            url: `${Cypress.env('apiUrl')}/categories/${item.id}`,
-                            headers: { 'Authorization': `Bearer ${cleanupToken}` },
-                            failOnStatusCode: false
-                        });
-                    });
-                }
-            }
-        });
-    });
-};
-
-Before(() => { return cleanUpApiData(); });
-After(() => { return cleanUpApiData(); });
-
-// SEED DATA HOOK
+// SEED DATA HOOK (Specific to this file)
 Before({ tags: "@seed_data_for_pagination" }, () => {
     ensureAdminToken().then(() => {
         cy.get('@adminToken').then((seedToken) => {
@@ -181,8 +121,7 @@ Then('the response body should confirm {string}', (msg) => {
     expect(JSON.stringify(actual)).to.include(msg);
 });
 
-// --- USER TEST STEPS ---
-
+// USER TEST STEPS 
 When('I send a GET request to retrieve categories with page {int} and size {int}', (page, size) => {
     ensureUserToken().then(() => {
         cy.get('@userToken').then((uToken) => {
@@ -236,7 +175,7 @@ When('I send a GET request to retrieve categories with invalid page {string} and
     }).then(capture);
 });
 
-// --- TC 34 Deletion ---
+// TC 34 Deletion 
 let deletableCategoryId;
 Given('a category exists for deletion testing', () => {
     cy.request({
@@ -269,7 +208,7 @@ Then('the category should no longer exist', () => {
     }).then((res) => { expect([404, 400]).to.include(res.status); });
 });
 
-// --- TC 35 Update ---
+// TC 35 Update 
 let validCategoryId;
 When('the Admin sends a PUT request to the category update endpoint with a new name', () => {
     const newName = `UpdCName`; 
@@ -295,7 +234,7 @@ Then('the category should have the updated name', () => {
     }).then((res) => { expect(res.body.name).to.eq(Cypress.env('UpdatedCategoryName')); });
 });
 
-// --- TC 36 Child Categories ---
+// TC 36 Child Categories 
 Given('Category A exists with Sub-Category B as its child', () => {
     const rand = Math.floor(Math.random() * 900) + 100;
     const catAName = `API_CA_${rand}`; 
@@ -358,7 +297,7 @@ Then('Sub-Category B should still exist', () => {
     }).then((res) => { expect(res.status).to.eq(200); });
 });
 
-// --- TC 37 Non-existent Delete ---
+// TC 37 Non-existent Delete 
 Given('Category ID 99999 does not exist', () => {
     cy.request({
         method: 'DELETE',
@@ -394,7 +333,7 @@ Then('the system should remain stable', () => {
     }).then((res) => { expect(res.status).to.eq(200); });
 });
 
-// --- TC 38 Update Null ---
+// TC 38 Update Null 
 Given('I create a category for update testing', () => {
     cy.request({
         method: 'POST',
@@ -429,7 +368,7 @@ When('the Admin sends a PUT request to the category update endpoint with body', 
     }).then(capture);
 });
 
-// --- TC 39 Update Duplicate ---
+// TC 39 Update Duplicate
 let categoryAId, categoryBId;
 Given('two categories "A" and "B" exist for update uniqueness testing', () => {
     const nameA = 'A' + Math.floor(Math.random() * 1000);
@@ -470,7 +409,7 @@ Then('the response message should indicate "Name already exists"', () => {
     expect(/name.*exist/i.test(msg)).to.be.true;
 });
 
-// --- TC 40 Circular ---
+// TC 40 Circular
 Given('I create a category for circular parent testing', () => {
     cy.request({
         method: 'POST',
@@ -485,7 +424,7 @@ Then('the response message should indicate "Category cannot be its own parent"',
     expect(/category.*own.*parent/i.test(msg)).to.be.true;
 });
 
-// --- TC 41 Integrity ---
+// TC 41 Integrity
 Given('I create a category for parent integrity testing', () => {
     const uniqueName = `API_P_${Math.floor(Math.random() * 900) + 100}`;
     cy.request({
@@ -504,7 +443,7 @@ Then('the response message should indicate "Parent category not found"', () => {
     expect(/parent.*not.*found/i.test(msg) || /category.*not.*found/i.test(msg)).to.be.true;
 });
 
-// --- TC 42 Sorting ---
+// TC 42 Sorting 
 let userApiResponse;
 Given('multiple categories exist with different names', () => {
     const names = ['Alpha', 'Charlie', 'Bravo'];

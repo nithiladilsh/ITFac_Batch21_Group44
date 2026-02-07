@@ -1,173 +1,36 @@
-import { Given, When, Then, Before, After } from "@badeball/cypress-cucumber-preprocessor";
+import { Given, When, Then } from "@badeball/cypress-cucumber-preprocessor";
 import salesPage from "../../../pages/sales/SalesPage";
-import sellPlantPage from "../../../pages/sales/SellPlantPage";
+import SellPlantPage from "../../../pages/sales/SellPlantPage";
+import { ensureAdminToken, cleanUpAllData } from "../apiCommonSteps";
 
-let testSaleIds = [];
-let adminToken = null;
-let userToken = null;
-
-// CACHED ADMIN TOKEN
-const getAdminToken = () => {
-    return cy.request({
-        method: "POST",
-        url: `${Cypress.env("apiUrl")}/auth/login`,
-        body: { username: Cypress.env("adminUser"), password: Cypress.env("adminPass") },
-        failOnStatusCode: false
-    }).then((res) => {
-        if (res.status === 200 && res.body.token) {
-            adminToken = res.body.token;
-            return adminToken;
-        }
-        throw new Error("Failed to obtain Admin Token for cleanup");
-    });
-};
-
-const getUserToken = () => {
-    return cy.request({
-        method: "POST",
-        url: `${Cypress.env("apiUrl")}/auth/login`,
-        body: { username: Cypress.env("stdUser") || "testuser", password: Cypress.env("stdPass") || "password" },
-        failOnStatusCode: false
-    }).then((res) => {
-        if (res.status === 200 && res.body.token) {
-            userToken = res.body.token;
-            return userToken;
-        }
-        return null; 
-    });
-};
-
+// UTILITY HELPER 
 const makeRequest = (method, endpoint, token, body = null) => {
-    if (!token) return cy.wrap(null); 
     return cy.request({
         method,
         url: `${Cypress.env("apiUrl")}${endpoint}`,
         headers: { Authorization: `Bearer ${token}` },
         body,
         failOnStatusCode: false,
+        log: false
     });
 };
 
-// CLEANUP HELPERS
-const cleanUpAllSales = () => {
-    return getAdminToken().then((admTok) => {
-        return getUserToken().then((usrTok) => {
-            // Fetch Sales as Admin
-            const adminReq = makeRequest("GET", "/sales?page=0&size=2000", admTok);
-            
-            // Fetch Sales as User (only if token exists)
-            const userReq = usrTok ? makeRequest("GET", "/sales?page=0&size=2000", usrTok) : cy.wrap({ body: [] });
-
-            return cy.wrap(Promise.all([adminReq, userReq])).then((responses) => {
-                let allSales = [];
-                // Extract sales from both responses
-                responses.forEach(res => {
-                    if (res && (res.body.content || res.body)) {
-                        const content = res.body.content || res.body;
-                        if (Array.isArray(content)) allSales = allSales.concat(content);
-                    }
-                });
-
-                const uniqueSales = [...new Map(allSales.map(item => [item.id, item])).values()];
-
-                if (uniqueSales.length > 0) {
-                    cy.log(`🧹 Found ${uniqueSales.length} sales. Deleting...`);
-                    return cy.wrap(uniqueSales).each(sale => {
-                        makeRequest("DELETE", `/sales/${sale.id}`, admTok);
-                    });
-                }
-            });
-        });
-    });
-};
-
-const cleanUpLeftoverPlants = () => {
-    return getAdminToken().then((token) => {
-        return makeRequest("GET", "/plants?page=0&size=2000", token).then((res) => {
-            const plants = res.body.content || res.body || [];
-            const junkPlants = plants.filter(p => p.name.startsWith("S_Plt") || p.name.startsWith("API_"));
-
-            if (junkPlants.length > 0) {
-                cy.log(`🧹 Found ${junkPlants.length} leftover plants. Deleting...`);
-                return cy.wrap(junkPlants).each(p => {
-                    makeRequest("DELETE", `/plants/${p.id}`, token);
-                });
-            }
-        });
-    });
-};
-
-const cleanUpLeftoverCategories = () => {
-    return getAdminToken().then((token) => {
-        return makeRequest("GET", "/categories/page?page=0&size=2000", token).then((res) => {
-            const cats = res.body.content || res.body || [];
-            const junkCats = cats.filter(c => 
-                c.name.startsWith("S_Par") || 
-                c.name.startsWith("S_Sub") || 
-                c.name.startsWith("API_")
-            );
-            
-            if (junkCats.length > 0) {
-                // Delete Children (Higher IDs) before Parents (Lower IDs)
-                junkCats.sort((a, b) => b.id - a.id);
-                cy.log(`🧹 Found ${junkCats.length} leftover categories. Deleting...`);
-                return cy.wrap(junkCats).each(c => {
-                    makeRequest("DELETE", `/categories/${c.id}`, token);
-                });
-            }
-        });
-    });
-};
-
-// DATA SEEDING HELPERS 
+// ROBUST SEEDING HELPER 
 const ensurePlantExists = () => {
-    return getAdminToken().then((token) => {
-        return makeRequest("GET", "/plants?page=0&size=10", token).then((plantsRes) => {
-            if (plantsRes.body && plantsRes.body.content) {
-                const validPlant = plantsRes.body.content.find((p) => p.quantity > 0);
-                if (validPlant) return cy.wrap(validPlant);
-            }
+    return ensureAdminToken().then((token) => {
+        return makeRequest("GET", "/plants?page=0&size=10", token).then((res) => {
+            const plants = res.body.content || [];
+            const valid = plants.find(p => p.quantity > 0);
+            if (valid) return cy.wrap(valid);
 
-            cy.log("⚠️ No plants found. Creating seed hierarchy...");
-            const rnd = Math.floor(Math.random() * 900) + 100;
-            
-            return makeRequest("POST", "/categories", token, { name: `S_Par${rnd}`, parent: null }).then((parRes) => {
-                return makeRequest("POST", "/categories", token, { name: `S_Sub${rnd}`, parent: { id: parRes.body.id } }).then((subRes) => {
-                    return makeRequest("POST", `/plants/category/${subRes.body.id}`, token, {
-                        name: `S_Plt${rnd}`,
-                        price: 50,
-                        quantity: 100
-                    }).then((plRes) => {
-                        return cy.wrap(plRes.body);
-                    });
-                });
-            });
+            const rnd = Math.floor(Math.random() * 900);
+            return makeRequest("POST", "/categories", token, { name: `S_Par${rnd}`, parent: null })
+                .then(pRes => makeRequest("POST", "/categories", token, { name: `S_Sub${rnd}`, parent: { id: pRes.body.id } }))
+                .then(sRes => makeRequest("POST", `/plants/category/${sRes.body.id}`, token, { name: `S_Plt${rnd}`, price: 50, quantity: 100 }))
+                .then(plRes => plRes.body);
         });
     });
 };
-
-const createSalesRecord = (plantId, quantity) => {
-    return getAdminToken().then((token) => {
-        return makeRequest("POST", `/sales/plant/${plantId}?quantity=${quantity}`, token, null);
-    });
-};
-
-// Aggressive Cleanup BEFORE tests
-Before({ tags: "@sales" }, () => {
-    // Force sequential execution
-    return cleanUpAllSales()
-        .then(() => cy.wait(500)) 
-        .then(() => cleanUpLeftoverPlants())
-        .then(() => cy.wait(500))
-        .then(() => cleanUpLeftoverCategories());
-});
-
-// Cleanup AFTER tests
-After({ tags: "@sales" }, () => {
-    return cleanUpAllSales()
-        .then(() => cleanUpLeftoverPlants())
-        .then(() => cleanUpLeftoverCategories());
-});
 
 // STEP DEFINITIONS 
 Given("I am on the Sales Page", () => {
@@ -179,80 +42,75 @@ Given("I am on the Dashboard page", () => {
 });
 
 Given("at least one sales record exists in the list", () => {
-    getAdminToken().then((token) => {
+    ensureAdminToken().then((token) => {
         makeRequest("GET", "/sales?page=0&size=5", token).then((res) => {
-            const sales = res.body.content || res.body || [];
+            const sales = res.body.content || [];
             if (sales.length === 0) {
-                cy.log("⚠️ Table empty. Seeding 3 sales records...");
                 ensurePlantExists().then((plant) => {
-                    createSalesRecord(plant.id, 1).then(r => testSaleIds.push(r.body.id))
-                    .then(() => createSalesRecord(plant.id, 2).then(r => testSaleIds.push(r.body.id)))
-                    .then(() => createSalesRecord(plant.id, 3).then(r => testSaleIds.push(r.body.id)))
-                    .then(() => {
-                        cy.reload();
-                    });
+                    makeRequest("POST", `/sales/plant/${plant.id}?quantity=1`, token);
+                    cy.wait(1000); 
+                    makeRequest("POST", `/sales/plant/${plant.id}?quantity=2`, token).then(() => cy.reload());
                 });
             }
         });
     });
-
     salesPage.elements.salesTable().should("be.visible");
-    salesPage.elements.salesRecords().should("have.length.greaterThan", 0);
+        salesPage.elements.salesRecords().should("have.length.greaterThan", 0);
     salesPage.elements.salesRecords().first().find("td").should("have.length.gt", 1);
 });
 
 Given("there are no sales records in the system", () => {
-    cleanUpAllSales();
+    return cleanUpAllData();
 });
 
 Given("I am on the {string} page", (pageName) => {
-    if (pageName === "Sell Plant") sellPlantPage.visit();
+    if (pageName === "Sell Plant") SellPlantPage.visit();
 });
 
 When("I click on the Plant dropdown menu", () => {
-    sellPlantPage.clickPlantDropdown();
+    SellPlantPage.clickPlantDropdown();
 });
 
 Then("the dropdown should be enabled", () => {
-    sellPlantPage.verifyDropdownEnabled();
+    SellPlantPage.verifyDropdownEnabled();
 });
 
 Then("the dropdown should display a list of available plants", () => {
-    sellPlantPage.verifyPlantsDisplayed();
+    SellPlantPage.verifyPlantsDisplayed();
 });
 
 Then("each plant entry should display its stock quantity", () => {
-    sellPlantPage.verifyPlantHasStockInfo();
+    SellPlantPage.verifyPlantHasStockInfo();
 });
 
 Given("I have selected a plant from the dropdown", () => {
-    sellPlantPage.elements.plantDropdown().should("be.visible");
-    sellPlantPage.elements.plantDropdownOptions().should('have.length.gt', 1).then(($options) => {
-        sellPlantPage.elements.plantDropdown().select($options.eq(1).val());
+    SellPlantPage.elements.plantDropdown().should("be.visible");
+    SellPlantPage.elements.plantDropdownOptions().should('have.length.gt', 1).then(($options) => {
+        SellPlantPage.elements.plantDropdown().select($options.eq(1).val());
     });
 });
 
 When("I select a plant from the dropdown", () => {
-    sellPlantPage.elements.plantDropdown().should("be.visible");
-    sellPlantPage.elements.plantDropdownOptions().should('have.length.gt', 1).then(($options) => {
-        sellPlantPage.elements.plantDropdown().select($options.eq(1).val());
+    SellPlantPage.elements.plantDropdown().should("be.visible");
+    SellPlantPage.elements.plantDropdownOptions().should('have.length.gt', 1).then(($options) => {
+        SellPlantPage.elements.plantDropdown().select($options.eq(1).val());
     });
 });
 
 When("I enter {string} in the Quantity field", (quantity) => {
-    sellPlantPage.enterQuantity(quantity);
+    SellPlantPage.enterQuantity(quantity);
 });
 
 When("I enter a valid quantity in the Quantity field", () => {
-    sellPlantPage.enterQuantity("5");
+    SellPlantPage.enterQuantity("5");
 });
 
 When("I attempt to submit the form", () => {
-    sellPlantPage.submitForm();
+    SellPlantPage.submitForm();
 });
 
 When("I click the submit button", () => {
-    sellPlantPage.submitForm();
+    SellPlantPage.submitForm();
 });
 
 Then('the "Sell Plant" button should be visible', () => {
@@ -260,7 +118,7 @@ Then('the "Sell Plant" button should be visible', () => {
 });
 
 Then("a validation error message should be displayed", () => {
-    sellPlantPage.verifyValidationError();
+    SellPlantPage.verifyValidationError();
 });
 
 Then("the plant sale should be completed successfully", () => {
@@ -343,7 +201,7 @@ Then("the sales records should display relevant information", () => {
     salesPage.elements.salesRecords().should("have.length.greaterThan", 0);
 });
 
-// --- SORTING ---
+// SORTING
 When("I observe the {string} column in the sales table", (columnName) => {
     const uiColumnName = columnName === "Sold date" ? "Sold At" : columnName;
     salesPage.elements.salesTable().contains("th", uiColumnName).should("be.visible");

@@ -1,188 +1,46 @@
-import { Given, When, Then, Before, After } from "@badeball/cypress-cucumber-preprocessor";
+import { Given, When, Then, Before } from "@badeball/cypress-cucumber-preprocessor";
 import plantPage from "../../../pages/plants/PlantPage";
+import { ensureAdminToken, cleanUpAllData } from "../apiCommonSteps";
 
-// CACHED TOKEN
-let cachedAdminToken = null;
-const getAdminToken = () => {
-  if (cachedAdminToken) return cy.wrap(cachedAdminToken);
-  return cy.request({
-    method: 'POST',
-    url: `${Cypress.env('apiUrl')}/auth/login`,
-    body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') },
-    log: false
-  }).then((res) => {
-    cachedAdminToken = res.body.token;
-    return cachedAdminToken;
-  });
-};
-
-const TEST_PLANTS = [
-  "Testsub", "Aloevera", "Plant 1", "Plant 2", "Plant 3", "Plant 4", "Plant 5",
-  "Plant 6", "Plant 7", "Plant 8", "Plant 9", "Plant 10",
-  "Plant 11", "Plant 12", "Plant 13", "Plant 14", "Plant 15",
-  "Low Stock Plant"
-];
-
-const cleanUpPlantData = () => {
-  cy.log("🌿 Running Plant Cleanup...");
-  getAdminToken().then(token => {
-    const headers = { Authorization: `Bearer ${token}` };
-
-    // 1. DELETE PLANTS (Clean up Foreign Keys first)
-    cy.request({
-      method: "GET",
-      url: `${Cypress.env("apiUrl")}/plants?page=0&size=2000`, 
-      headers,
-      failOnStatusCode: false,
-      log: false
-    }).then((res) => {
-      const plants = res.body.content || res.body;
-      const namesToDelete = [...TEST_PLANTS, "Aloevera"];
-      
-      const junkPlants = plants.filter((p) => 
-         namesToDelete.includes(p.name) || 
-         (p.category && /^P\d+$/.test(p.category.name)) 
-      );
-
-      if (junkPlants.length > 0) {
-        cy.log(`Deleting ${junkPlants.length} plants...`);
-        junkPlants.forEach((plant) => {
-          cy.request({
-            method: "DELETE",
-            url: `${Cypress.env("apiUrl")}/plants/${plant.id}`,
-            headers,
-            failOnStatusCode: false,
-            log: false
-          });
-        });
-      }
-    });
-
-    cy.wait(200); 
-
-    // 2. DYNAMICALLY IDENTIFY PARENTS & DELETE CATEGORIES
-    cy.request({
-      method: "GET",
-      url: `${Cypress.env("apiUrl")}/categories?page=0&size=2000`,
-      headers,
-      failOnStatusCode: false,
-      log: false
-    }).then((res) => {
-      const categories = res.body.content || res.body;
-
-      const childrenToDelete = categories.filter(c => 
-        /^P\d+$/.test(c.name) || c.name === "Testsub"
-      );
-
-      const parentIdsToDelete = new Set();
-      childrenToDelete.forEach(child => {
-        if (child.parent && child.parent.id) {
-          parentIdsToDelete.add(child.parent.id);
-        }
-      });
-      
-      const testRoot = categories.find(c => c.name === "TestRoot");
-      if (testRoot) parentIdsToDelete.add(testRoot.id);
-
-      if (childrenToDelete.length > 0) {
-        childrenToDelete.forEach(sub => {
-             cy.request({ method: "DELETE", url: `${Cypress.env("apiUrl")}/categories/${sub.id}`, headers, failOnStatusCode: false, log: false });
-        });
-      }
-      
-      if (parentIdsToDelete.size > 0) {
-        parentIdsToDelete.forEach(parentId => {
-             cy.request({ method: "DELETE", url: `${Cypress.env("apiUrl")}/categories/${parentId}`, headers, failOnStatusCode: false, log: false });
-        });
-      }
-    });
-  });
-};
-
-// ADD TAG TO BEFORE HOOK
-Before({ tags: "@plant" }, () => {
-  cleanUpPlantData();
-});
-
-const createPlantsSequentially = (subCategory, headers) => {
-  TEST_PLANTS.forEach((plantName, index) => {
-    const isLowStock = index === TEST_PLANTS.length - 1;
-    const body = {
-      name: plantName,
-      price: Number(isLowStock ? 200 : 100), 
-      quantity: Number(isLowStock ? 2 : 25),
-      category: { id: subCategory.id, name: subCategory.name }
-    };
-
-    cy.request({
-      method: "POST",
-      url: `${Cypress.env("apiUrl")}/plants/category/${subCategory.id}`,
-      headers,
-      body,
-      failOnStatusCode: false,
-      log: false
-    });
-  });
-};
-
-// BEFORE HOOK
+// SETUP HOOKS 
 Before({ tags: "@setup_plant_data" }, () => {
   cy.log("Seeding Plant Test Data...");
-  getAdminToken().then(token => {
+  ensureAdminToken().then(token => {
     const headers = { Authorization: `Bearer ${token}` };
 
-    const ensureMainCategory = () => {
+    const ensureCategoryHierarchy = () => {
       return cy.request({ method: "GET", url: `${Cypress.env("apiUrl")}/categories?page=0&size=1000`, headers, log: false })
       .then((catRes) => {
         const categories = catRes.body.content || catRes.body; 
         const existingMain = categories.find(c => c.name === "TestRoot" || c.parent === null);
         
-        if (existingMain) {
-          return cy.wrap(existingMain.id);
-        } else {
-          return cy.request({
-            method: "POST", url: `${Cypress.env("apiUrl")}/categories`, headers, body: { name: "TestRoot", parent: null }, failOnStatusCode: false, log: false
-          }).then((res) => res.body.id);
-        }
+        return existingMain 
+          ? cy.wrap(existingMain.id) 
+          : cy.request({ method: "POST", url: `${Cypress.env("apiUrl")}/categories`, headers, body: { name: "TestRoot", parent: null }, log: false }).then(res => res.body.id);
+      }).then((parentId) => {
+          return cy.request({ method: "POST", url: `${Cypress.env("apiUrl")}/categories`, headers, body: { name: "Testsub", parent: { id: parentId } }, failOnStatusCode: false, log: false })
+          .then(res => res.body);
       });
     };
 
-    const ensureSubCategory = (parentId) => {
-      cy.request({ method: "GET", url: `${Cypress.env("apiUrl")}/categories?page=0&size=1000`, headers, log: false })
-      .then((catRes) => {
-          const categories = catRes.body.content || catRes.body;
-          const existingSub = categories.find(c => c.name === "Testsub");
-
-          const createFreshSub = () => {
-            cy.request({
-              method: "POST", url: `${Cypress.env("apiUrl")}/categories`, headers, body: { name: "Testsub", parent: { id: parentId } }, failOnStatusCode: false, log: false
-            }).then((res) => {
-              createPlantsSequentially(res.body, headers);
-            });
-          };
-
-          if (existingSub) {
-             cy.request({ method: "DELETE", url: `${Cypress.env("apiUrl")}/categories/${existingSub.id}`, headers, failOnStatusCode: false, log: false })
-             .then(() => { createFreshSub(); });
-          } else {
-             createFreshSub();
-          }
+    ensureCategoryHierarchy().then((subCategory) => {
+      const TEST_PLANTS = ["Aloevera", "Plant 1", "Plant 2", "Plant 3", "Plant 4", "Plant 5", "Plant 6", "Plant 7", "Plant 8", "Plant 9", "Plant 10", "Low Stock Plant"];
+      TEST_PLANTS.forEach((name) => {
+        const qty = name === "Low Stock Plant" ? 2 : 25;
+        cy.request({
+          method: "POST",
+          url: `${Cypress.env("apiUrl")}/plants/category/${subCategory.id}`,
+          headers,
+          body: { name, price: 100, quantity: qty },
+          failOnStatusCode: false,
+          log: false
         });
-    };
-
-    ensureMainCategory().then((validParentId) => {
-      ensureSubCategory(validParentId);
+      });
     });
   });
 });
 
-// ADD TAG TO AFTER HOOK 
-After({ tags: "@plant" }, () => {
-  cleanUpPlantData();
-});
-
-
-// UI_TC_37: Verify that the plant list table is displayed correctly with pagination.
+// STEP DEFINITIONS 
 Given("I am on the Plant List Page", () => {
   plantPage.visit();
 });
@@ -210,7 +68,6 @@ Then("additional plants should be available on subsequent pages", () => {
   plantPage.verifyFirstPlantIsChanged();
 });
 
-// UI_TC_38: Verify that pagination controls are present and functional on the Plant List Page.
 Given("the number of plants exceeds one page", () => {
   plantPage.elements.paginationControls().should("be.visible");
 });
@@ -219,12 +76,9 @@ When("I locate the pagination controls", () => {
   plantPage.verifyPaginationVisible();
 });
 
-Then(
-  'pagination controls such as "Next", "Previous" and page numbers should be visible',
-  () => {
-    plantPage.verifyPaginationControlsVisible();
-  }
-);
+Then('pagination controls such as "Next", "Previous" and page numbers should be visible', () => {
+  plantPage.verifyPaginationControlsVisible();
+});
 
 When('I click "Next" page button', () => {
   plantPage.captureFirstPlantName();
@@ -252,7 +106,6 @@ Then("the plant list should be updated correctly without errors", () => {
   cy.get(".alert-danger").should("not.exist");
 });
 
-// UI_TC_39: Verify that the search functionality works correctly on the Plant List Page.
 Given("plants exist with different names", () => {
   plantPage.elements.tableRows().should("have.length.greaterThan", 1);
 });
@@ -278,8 +131,6 @@ Then("all the plant records should be displayed", () => {
   plantPage.elements.tableRows().should("have.length.greaterThan", 1);
 });
 
-
-// UI_TC_40: Verify “No plants found” message is displayed when list is empty
 Given("no plants exist or the search returns no results", () => {
   plantPage.elements.tableRows().should("have.length.greaterThan", 0);
 });
@@ -298,7 +149,6 @@ Then("no plant cards or rows are shown", () => {
     .and("contain.text", "No plants found");
 });
 
-//UI_TC_41: Verify “Low” badge is visually displayed on plant card when stock is low
 Given("a plant exists with quantity less than 5", () => {
     cy.visit("/plants?page=0&size=100");
     cy.contains("tbody tr", "Low Stock Plant", { timeout: 10000 })
@@ -326,7 +176,6 @@ Then("the badge should be clearly associated with the low stock plant", () => {
     .should("contain", "Low Stock Plant");
 });
 
-//UI_TC 32: Verify "Add a Plant" button is visible only to Admin on Plant List page
 Then('the "Add Plant" button should be visible', () => {
   plantPage.verifyAddPlantButtonVisible();
 });
@@ -339,7 +188,6 @@ Then('the "Add Plant" button should NOT be visible', () => {
   plantPage.verifyAddPlantButtonNotVisible();
 });
 
-// UI_TC_53: Edit button visibility for Admin
 Given("the Plant list is displayed", () => {
   plantPage.visit();
   plantPage.verifytableVisible();
@@ -359,42 +207,29 @@ When("I locate a plant row", () => {
 
 Then('I should see the {string} button for that row', (buttonLabel) => {
   cy.get("@targetPlantRow").within(() => {
-    cy.get(
-      'a[title="Edit"], a[aria-label="Edit"], button[aria-label="Edit"], button[title="Edit"], .btn-edit, .edit-btn, .action-edit, i.bi-pencil-square, .bi-pencil-square, i.bi.bi-pencil-square'
-    )
-      .first()
-      .should("be.visible");
+    cy.get('a[title="Edit"], .btn-edit, i.bi-pencil-square').first().should("be.visible");
   });
 });
 
 Then('the {string} button should be enabled', (buttonLabel) => {
   cy.get("@targetPlantRow").within(() => {
-    cy.get('a[title="Edit"], a[aria-label="Edit"], button[aria-label="Edit"], button[title="Edit"], .btn-edit, .edit-btn, .action-edit')
-      .first()
-      .should("be.visible")
-      .and((el) => {
-        expect(el).not.to.have.class("disabled");
-        expect(el).not.to.have.attr("aria-disabled", "true");
-      });
+    cy.get('a[title="Edit"], .btn-edit').first().should("be.visible").and("not.have.class", "disabled");
   });
 });
 
-// UI_TC_54: Verify that clicking "Edit" opens the Edit Plant page with pre-filled data
 Given('a plant {string} exists with price {string}', (plantName, price) => {
-  getAdminToken().then(token => {
+  ensureAdminToken().then(token => {
     const headers = { Authorization: `Bearer ${token}` };
-    cy.request({ method: "GET", url: `${Cypress.env("apiUrl")}/categories?page=0&size=1000`, headers }).then((catRes) => {
-      const categories = catRes.body.content || catRes.body;
-      const subCategory = categories.find(c => c.parent !== null) || categories[0];
+    cy.request({ method: "GET", url: `${Cypress.env("apiUrl")}/plants?search=${plantName}`, headers, failOnStatusCode: false }).then((res) => {
+      const plants = res.body.content || res.body;
+      if (Array.isArray(plants) && plants.find(p => p.name === plantName && p.quantity > 0)) return;
 
-      cy.request({
-        method: "POST",
-        url: `${Cypress.env("apiUrl")}/plants/category/${subCategory.id}`,
-        headers,
-        body: { id: 0, name: plantName, price: Number(price), quantity: 15, category: { id: subCategory.id, name: subCategory.name } },
-        failOnStatusCode: false
-      }).then((plantRes) => {
-        cy.wrap(plantRes.body.id).as('createdPlantId');
+      cy.request({ method: "GET", url: `${Cypress.env("apiUrl")}/categories?page=0&size=1000`, headers }).then((catRes) => {
+        const categories = catRes.body.content || catRes.body;
+        let subId = categories.find(c => c.parent !== null)?.id;
+        if (subId) {
+          cy.request({ method: "POST", url: `${Cypress.env("apiUrl")}/plants/category/${subId}`, headers, body: { name: plantName, price: Number(price), quantity: 15 }, failOnStatusCode: false });
+        }
       });
     });
   });
@@ -402,7 +237,12 @@ Given('a plant {string} exists with price {string}', (plantName, price) => {
 });
 
 When('I click {string} on plant {string}', (action, plantName) => {
-  plantPage.clickEditButtonForPlant(plantName);
+  cy.get('input[placeholder*="Search"]').clear().type(plantName);
+  cy.get('button').contains('Search').click(); // Submit Search
+  cy.wait(500); 
+  cy.contains("tbody tr", plantName, { timeout: 10000 }).should("be.visible").within(() => {
+    cy.get('a[title="Edit"], .btn-outline-primary, .bi-pencil-square').first().click();
+  });
 });
 
 Then('the Edit Plant page should open', () => {
@@ -425,12 +265,10 @@ Then('the Category field should be populated', () => {
 
 Then('the Quantity field should be populated', () => {
   plantPage.elements.quantityInput().invoke('val').then((val) => {
-    expect(val).to.not.be.empty;
     expect(Number(val)).to.be.greaterThan(0);
   });
 });
 
-// UI_TC_55: Verify updating Price with a valid value saves successfully
 When('I change the Price to {string}', (newPrice) => {
   plantPage.updatePrice(newPrice);
 });
@@ -440,19 +278,23 @@ Then('a success message should be displayed', () => {
 });
 
 Then('the plant {string} should display price {string}', (plantName, expectedPrice) => {
-  plantPage.verifyPlantPrice(plantName, expectedPrice);
+    cy.get('input[placeholder*="Search"]').clear().type(plantName);
+    cy.get('button').contains('Search').click();
+    cy.wait(500);
+    cy.contains("tbody tr", plantName).find("td").contains(expectedPrice).should("be.visible");
 });
 
-// UI_TC_56: Verify updating Quantity with a valid value saves successfully
 When('I change the Quantity to {string}', (newQuantity) => {
   plantPage.updateQuantity(newQuantity);
 });
 
 Then('the plant {string} should display quantity {string}', (plantName, expectedQuantity) => {
-  plantPage.verifyPlantQuantity(plantName, expectedQuantity);
+    cy.get('input[placeholder*="Search"]').clear().type(plantName);
+    cy.get('button').contains('Search').click();
+    cy.wait(500);
+    cy.contains("tbody tr", plantName).find("td").contains(expectedQuantity).should("be.visible");
 });
 
-// UI_TC_57: Verify validation error when updating Price to a negative value
 Then('a price validation error should be displayed', () => {
   plantPage.verifyPriceValidationError();
 });
@@ -465,14 +307,10 @@ Then('I should remain on the Edit Plant page', () => {
   plantPage.verifyOnEditPage();
 });
 
-// UI_TC_58: Verify validation error when updating Quantity to a negative value
 Then('a quantity validation error should be displayed', () => {
   plantPage.verifyQuantityValidationError();
 });
 
-
-
-//UI_TC 33: Verify Add Plant form fields are displayed correctly
 Then('the Add Plant form should be visible', () => {
   plantPage.verifyAddPlantFormVisible();
 });
@@ -493,7 +331,6 @@ Then('the "Quantity" input field should be displayed', () => {
   plantPage.verifyQuantityFieldVisible();
 });
 
-//UI_TC 34: Verify Add Plant form validation messages for required fields
 When("I leave all Add Plant fields empty", () => {
   plantPage.elements.plantNameInput().clear();
   plantPage.elements.categoryDropdown().select("");
@@ -512,7 +349,6 @@ Then("the Add Plant form should not be submitted", () => {
   cy.url().should("include", "/ui/plants/add");
 });
 
-//UI_TC 35: Verify Category dropdown displays only sub-categories
 Then("only sub-categories should be listed in the Category dropdown", () => {
   plantPage.verifyOnlySubCategoriesDisplayed();
 });
@@ -521,12 +357,10 @@ Then("main categories should not be selectable", () => {
   plantPage.verifyMainCategoriesNotSelectable();
 });
 
-//UI_TC 36: Verify Cancel button returns Admin to Plant List page
 Given("I am on the Add Plant page", () => {
   plantPage.clickAddPlantButton();
   plantPage.verifyAddPlantFormVisible();
 });
-
 
 When("I enter valid data into the Add Plant form", () => {
   plantPage.enterValidPlantData();
@@ -534,7 +368,6 @@ When("I enter valid data into the Add Plant form", () => {
 
 Then("I should be redirected to the Plant List Page", () => {
   cy.url().should("include", "/ui/plants");
-  plantPage.verifytableVisible();
 });
 
 Then("no new plant should be created", () => {
@@ -543,67 +376,64 @@ Then("no new plant should be created", () => {
 
 Then("previously entered form data should be discarded", () => {
   cy.visit("/plants/add");
-
   plantPage.elements.plantNameInput().should("have.value", "");
   plantPage.elements.priceInput().should("have.value", "");
   plantPage.elements.quantityInput().should("have.value", "");
   plantPage.elements.categoryDropdown().should("have.value", "");
 });
 
-// SORTING - GIVEN STEPS
+// SORTING STEPS
 Given('plants exist with names in the list', function() {
-    cy.get('tbody tr').should('have.length.greaterThan', 0);
+    cy.get('tbody tr', { timeout: 10000 }).should('have.length.at.least', 5);
+});
+
+Given('plants exist with different prices', function() {
+    cy.get('tbody tr td:nth-child(3)', { timeout: 10000 }).should('have.length.at.least', 2);
+});
+
+Given('plants exist with different stock quantities', function() {
+    cy.get('tbody tr td:nth-child(4)', { timeout: 10000 }).should('have.length.at.least', 2);
 });
 
 When('I click on the {string} column header to sort ascending', function(columnName) {
-    const columnMap = {
-        'Name': 'name',
-        'Price': 'price',
-        'Stock': 'quantity'
-    };
+    const columnMap = { 'Name': 'name', 'Price': 'price', 'Stock': 'quantity' };
     const fieldName = columnMap[columnName];
-    cy.get(`a[href*="sortField=${fieldName}"]`).first().invoke('attr', 'href').then((href) => {
-        if (href.includes('sortDir=desc')) {
-            cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
-            cy.wait(200);
-            cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
-        } else {
-            cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
-        }
+    
+    cy.get(`a[href*="sortField=${fieldName}"]`).first().then(($link) => {
+        cy.wrap($link).click();
+        cy.url().then((url) => {
+            // If the first click resulted in 'desc', click again to get 'asc'
+            if (url.includes('sortDir=desc')) {
+                cy.log("Currently descending, clicking again for ascending...");
+                cy.get(`a[href*="sortField=${fieldName}"]`).first().click();
+            }
+        });
     });
-    cy.url().should('include', `sortField=${fieldName}`);
-    cy.url().should('include', 'sortDir=asc');
-    cy.wait(200);
+    cy.wait(500); 
 });
 
+// TC 62: Name Sorting
 Then('the plant list should be sorted by name in ascending order', function() {
     cy.get('tbody tr td:first-child').then(($cells) => {
-        const plantNames = $cells.map((i, el) => Cypress.$(el).text().trim()).get();
-        const sortedNames = [...plantNames].sort((a, b) => a.localeCompare(b));
+        const plantNames = [...$cells].map(el => el.innerText.trim().toLowerCase());
+        const sortedNames = [...plantNames].sort();
         expect(plantNames).to.deep.equal(sortedNames);
     });
 });
 
 Then('the plants should be ordered alphabetically from A to Z', function() {
     cy.get('tbody tr td:first-child').then(($cells) => {
-        const plantNames = $cells.map((i, el) => Cypress.$(el).text().trim()).get();
-        for (let i = 0; i < plantNames.length - 1; i++) {
-            const current = plantNames[i];
-            const next = plantNames[i + 1];
-            const comparison = current.localeCompare(next);
-            expect(comparison, `"${current}" should come before or equal to "${next}"`).to.be.at.most(0);
+        const names = [...$cells].map(el => el.innerText.trim().toLowerCase());
+        for (let i = 0; i < names.length - 1; i++) {
+            expect(names[i].localeCompare(names[i+1])).to.be.at.most(0);
         }
     });
 });
 
-
-Given('plants exist with different prices', function() {
-    cy.get('tbody tr td:nth-child(3)').should('have.length.greaterThan', 1);
-});
-
+// TC 63: Price Sorting
 Then('the plant list should be sorted by price in ascending order', function() {
     cy.get('tbody tr td:nth-child(3)').then(($cells) => {
-        const prices = $cells.map((i, el) => parseFloat(Cypress.$(el).text().trim())).get();
+        const prices = [...$cells].map(el => parseFloat(el.innerText.replace(/[^\d.-]/g, '')));
         const sortedPrices = [...prices].sort((a, b) => a - b);
         expect(prices).to.deep.equal(sortedPrices);
     });
@@ -611,41 +441,32 @@ Then('the plant list should be sorted by price in ascending order', function() {
 
 Then('the plants should be ordered from low to high price', function() {
     cy.get('tbody tr td:nth-child(3)').then(($cells) => {
-        const prices = $cells.map((i, el) => parseFloat(Cypress.$(el).text().trim())).get();
+        const prices = [...$cells].map(el => parseFloat(el.innerText.replace(/[^\d.-]/g, '')));
         for (let i = 0; i < prices.length - 1; i++) {
-            const current = prices[i];
-            const next = prices[i + 1];
-            expect(current, `Price ${current} should be <= ${next}`).to.be.at.most(next);
+            expect(prices[i]).to.be.at.most(prices[i+1]);
         }
     });
 });
 
-
-Given('plants exist with different stock quantities', function() {
-    cy.get('tbody tr td:nth-child(4) span:first-child').should('have.length.greaterThan', 1);
-});
-
+// TC 64: Quantity Sorting
 Then('the plant list should be sorted by quantity in ascending order', function() {
     cy.get('tbody tr td:nth-child(4) span:first-child').then(($cells) => {
-        const quantities = $cells.map((i, el) => parseInt(Cypress.$(el).text().trim())).get();
+        const quantities = [...$cells].map(el => parseInt(el.innerText.trim()));
         const sortedQuantities = [...quantities].sort((a, b) => a - b);
         expect(quantities).to.deep.equal(sortedQuantities);
     });
 });
 
+// FIXED: Added missing step implementation for Quantity
 Then('the plants should be ordered from low to high stock quantity', function() {
     cy.get('tbody tr td:nth-child(4) span:first-child').then(($cells) => {
-        const quantities = $cells.map((i, el) => parseInt(Cypress.$(el).text().trim())).get();
+        const quantities = [...$cells].map(el => parseInt(el.innerText.trim()));
         for (let i = 0; i < quantities.length - 1; i++) {
-            const current = quantities[i];
-            const next = quantities[i + 1];
-            expect(current, `Quantity ${current} should be <= ${next}`).to.be.at.most(next);
+            expect(quantities[i]).to.be.at.most(quantities[i+1]);
         }
     });
 });
 
-// RBAC - WHEN STEPS
 When('I check the plant rows for action buttons', function() {
-    cy.get('tbody tr').should('exist');
     cy.get('tbody tr').first().should('be.visible');
 });

@@ -1,69 +1,11 @@
 import { Given, When, Then, Before, After } from "@badeball/cypress-cucumber-preprocessor";
 import categoryPage from "../../../pages/categories/CategoryPage";
-
-// CACHED ADMIN TOKEN
-let cachedAdminToken = null;
-
-const getAdminToken = () => {
-  if (cachedAdminToken) return cy.wrap(cachedAdminToken);
-  return cy.request({
-    method: 'POST',
-    url: `${Cypress.env('apiUrl')}/auth/login`,
-    body: { username: Cypress.env('adminUser'), password: Cypress.env('adminPass') },
-    log: false 
-  }).then((res) => {
-    cachedAdminToken = res.body.token;
-    return cachedAdminToken;
-  });
-};
-
-// Test Data Names for Cleanup
-const TEST_DATA_NAMES = [
-  "Chives", "Rue", "Vegetables", "Blueberries", "plants", "Temp", "Herbs"
-];
-
-// Optimized Cleanup Function
-const cleanUpTestData = () => {
-  // Use cached token to avoid re-logging in
-  getAdminToken().then(token => {
-    cy.request({
-      method: 'GET',
-      url: `${Cypress.env('apiUrl')}/categories/page?page=0&size=2000`,
-      headers: { 'Authorization': `Bearer ${token}` },
-      failOnStatusCode: false,
-      log: false
-    }).then((listRes) => {
-      if (listRes.body && listRes.body.content) {
-        const junkItems = listRes.body.content.filter(c =>
-          TEST_DATA_NAMES.includes(c.name) || c.name.startsWith("plants_") || c.name.startsWith("sort_")
-        );
-
-        if (junkItems.length > 0) {
-            cy.log(`🧹 Cleaning up ${junkItems.length} categories...`);
-            junkItems.forEach((item) => {
-              cy.request({
-                method: 'DELETE',
-                url: `${Cypress.env('apiUrl')}/categories/${item.id}`,
-                headers: { 'Authorization': `Bearer ${token}` },
-                failOnStatusCode: false,
-                log: false
-              });
-            });
-        }
-      }
-    });
-  });
-};
-
-// 1. GLOBAL CLEANUP (RESTRICTED TO @category)
-Before({ tags: "@category" }, () => {
-  cleanUpTestData();
-});
+import { ensureAdminToken, cleanUpAllData } from "../apiCommonSteps";
 
 // 2. ADMIN SETUP (@requires_parent)
 Before({ tags: "@requires_parent" }, () => {
   cy.log("Creating 'Herbs' parent for Admin test...");
-  getAdminToken().then(token => {
+  ensureAdminToken().then(token => {
     cy.request({
       method: 'POST',
       url: `${Cypress.env('apiUrl')}/categories`,
@@ -78,7 +20,7 @@ Before({ tags: "@requires_parent" }, () => {
 // 3. STANDARD USER SETUP (@setup_standard_data)
 Before({ tags: "@setup_standard_data" }, () => {
   cy.log("Seeding Database for Standard User Tests...");
-  getAdminToken().then(token => {
+  ensureAdminToken().then(token => {
     const headers = { 'Authorization': `Bearer ${token}` };
 
     cy.request({ method: 'POST', url: `${Cypress.env('apiUrl')}/categories`, headers, body: { "name": "Vegetables", "parent": null }, failOnStatusCode: false, log: false });
@@ -122,7 +64,7 @@ Before({ tags: "@setup_standard_data" }, () => {
 // 4. DUPLICATE DATA SETUP (@setup_duplicate_data)
 Before({ tags: "@setup_duplicate_data" }, () => {
     cy.log("Seeding 'plants' for duplicate check...");
-    getAdminToken().then(token => {
+    ensureAdminToken().then(token => {
         cy.request({
             method: 'POST',
             url: `${Cypress.env('apiUrl')}/categories`,
@@ -137,7 +79,7 @@ Before({ tags: "@setup_duplicate_data" }, () => {
 // 5. SORTING SETUP (@setup_sorting_data)
 Before({ tags: "@setup_sorting_data" }, () => {
   cy.log("Seeding specific data for Sorting Test...");
-  getAdminToken().then(token => {
+  ensureAdminToken().then(token => {
     const headers = { 'Authorization': `Bearer ${token}` };
 
     // Fetch and delete potential leftovers first
@@ -175,11 +117,7 @@ Before({ tags: "@setup_sorting_data" }, () => {
   });
 });
 
-After({ tags: "@category" }, () => {
-  cleanUpTestData();
-});
-
-// Helper: Numeric Retry Logic ---
+// Helper: Numeric Retry Logic 
 function tryToAchieveNumericSortOrder(targetOrder, attempts) {
   if (attempts >= 3) return; 
 
@@ -231,8 +169,7 @@ function tryToAchieveSortOrder(targetOrder, attempts) {
   });
 }
 
-// --- STEP DEFINITIONS ---
-
+// STEP DEFINITIONS
 // UI_TC_01: Verify that a user can add a new category with an empty parent category.
 Given("I am on the Category Management Page", () => {
   categoryPage.visit();

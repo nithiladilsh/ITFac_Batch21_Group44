@@ -1,4 +1,4 @@
-import { Given, When, Then, Before, After } from "@badeball/cypress-cucumber-preprocessor";
+import { Given, When, Then, Before } from "@badeball/cypress-cucumber-preprocessor";
 import { ensureAdminToken, ensureUserToken } from "../apiCommonSteps";
 
 let apiResponse;
@@ -11,11 +11,6 @@ const getList = (body) => {
     if (!body) return [];
     if (Array.isArray(body)) return body;
     if (Array.isArray(body.content)) return body.content;
-    if (Array.isArray(body.data)) return body.data;
-    if (body._embedded) {
-        const keys = Object.keys(body._embedded);
-        if (keys.length > 0) return body._embedded[keys[0]];
-    }
     return [];
 };
 
@@ -37,95 +32,6 @@ Before({ tags: "@api" }, () => {
         });
     });
 });
-
-// CLEANUP FUNCTION
-const cleanUpPlantApiData = () => {
-  const prefix = "API_";
-
-  return cy.request({
-      method: "POST",
-      url: `${Cypress.env("apiUrl")}/auth/login`,
-      body: { username: Cypress.env("adminUser"), password: Cypress.env("adminPass") },
-      failOnStatusCode: false,
-    }).then((loginRes) => {
-      if (!loginRes.body.token) return;
-      const cleanupToken = loginRes.body.token;
-
-      // 1. DELETE SALES
-      cy.request({
-          method: "GET",
-          url: `${Cypress.env("apiUrl")}/sales?page=0&size=2000`,
-          headers: { Authorization: `Bearer ${cleanupToken}` },
-          failOnStatusCode: false
-      }).then((salesRes) => {
-          const sales = getList(salesRes.body);
-          if (sales.length > 0) {
-              cy.wrap(sales).each((sale) => {
-                  cy.request({
-                      method: "DELETE",
-                      url: `${Cypress.env("apiUrl")}/sales/${sale.id}`,
-                      headers: { Authorization: `Bearer ${cleanupToken}` },
-                      failOnStatusCode: false
-                  });
-              });
-          }
-      }).then(() => {
-          // 2. DELETE PLANTS
-          cy.request({
-              method: "GET",
-              url: `${Cypress.env("apiUrl")}/plants?page=0&size=2000`,
-              headers: { Authorization: `Bearer ${cleanupToken}` },
-              failOnStatusCode: false,
-          }).then((listRes) => {
-              const plantList = getList(listRes.body);
-              if (plantList.length > 0) {
-                // Delete API_ plants OR specific test names
-                const junkPlants = plantList.filter(p => 
-                    p.name && (p.name.startsWith(prefix) || p.name === "API_Rose" || p.name === "RoseAloe")
-                );
-                if (junkPlants.length > 0) {
-                    cy.wrap(junkPlants).each((plant) => {
-                        cy.request({
-                            method: "DELETE",
-                            url: `${Cypress.env("apiUrl")}/plants/${plant.id}`,
-                            headers: { Authorization: `Bearer ${cleanupToken}` },
-                            failOnStatusCode: false,
-                        });
-                    });
-                }
-              }
-          });
-      }).then(() => {
-          // 3. DELETE CATEGORIES
-          cy.request({
-              method: 'GET',
-              url: `${Cypress.env('apiUrl')}/categories/page?page=0&size=2000`,
-              headers: { 'Authorization': `Bearer ${cleanupToken}` },
-              failOnStatusCode: false
-          }).then((listRes) => {
-              const cats = getList(listRes.body);
-              if (cats.length > 0) {
-                  const junkItems = cats.filter(c => String(c.name).startsWith(prefix));
-                  junkItems.sort((a, b) => b.id - a.id); 
-                  if (junkItems.length > 0) {
-                      cy.wrap(junkItems).each((item) => {
-                          cy.request({
-                              method: 'DELETE',
-                              url: `${Cypress.env('apiUrl')}/categories/${item.id}`,
-                              headers: { 'Authorization': `Bearer ${cleanupToken}` },
-                              failOnStatusCode: false
-                          });
-                      });
-                  }
-              }
-          });
-      });
-    });
-};
-
-// GLOBAL BEFORE/AFTER
-Before(() => cleanUpPlantApiData());
-After(() => cleanUpPlantApiData());
 
 // HIERARCHY HELPER 
 const createNewHierarchy = () => {
@@ -183,7 +89,6 @@ Given("a valid plant category exists", () => {
 Given("a valid plant sub-category exists", () => {
     return createHierarchy();
 });
-
 
 // API_TC_24 - Add Plant
 When("I send a POST request to create a plant with valid data", () => {
@@ -276,7 +181,7 @@ Then("the response indicates non-admin access is forbidden", () => {
   expect(["Forbidden", "Access denied"]).to.include(actualMessage);
 });
 
-// --- SEARCH FIX (TC_30) ---
+// API_TC_30
 Before({ tags: "@search" }, () => {
     createHierarchy().then(() => {
         cy.request({
